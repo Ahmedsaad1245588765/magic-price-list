@@ -231,6 +231,56 @@
     flex: 0 0 auto;
   }
   #chatSendBtn:hover { background: var(--primary); }
+
+  /* تصميم الهاتف: النماذج والصفوف تصبح واضحة بدل ضغط الجدول. */
+  @media (max-width: 600px) {
+    header { padding: 14px 16px; }
+    header h1 { font-size: 17px; }
+    #tabs { padding: 12px 14px 0; }
+    .tab-btn { padding: 9px 14px; font-size: 13px; }
+    main { padding: 14px; }
+    .card { padding: 16px; margin-bottom: 16px; }
+    .form-row { display: grid; grid-template-columns: 1fr; gap: 10px; }
+    .form-row input, .form-row select, button.primary { width: 100%; min-width: 0; }
+
+    #productsTable table, #employeesTable table,
+    #productsTable thead, #employeesTable thead,
+    #productsTable tbody, #employeesTable tbody,
+    #productsTable tr, #employeesTable tr,
+    #productsTable td, #employeesTable td { display: block; width: 100%; }
+    #productsTable thead, #employeesTable thead { display: none; }
+    #productsTable tr, #employeesTable tr {
+      margin: 0 0 14px;
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: #fafcfd;
+    }
+    #productsTable td, #employeesTable td {
+      display: grid;
+      grid-template-columns: 88px minmax(0, 1fr);
+      align-items: center;
+      gap: 8px;
+      padding: 8px 0;
+      text-align: right;
+      border-bottom: 1px solid var(--border);
+    }
+    #productsTable td:last-child, #employeesTable td:last-child { border-bottom: 0; }
+    #productsTable td::before, #employeesTable td::before { color: var(--muted); font-size: 12px; font-weight: 700; }
+    #productsTable td:nth-child(1)::before { content: 'الاسم'; }
+    #productsTable td:nth-child(2)::before { content: 'الموديل'; }
+    #productsTable td:nth-child(3)::before { content: 'السعر'; }
+    #productsTable td:nth-child(4)::before { content: 'الألوان'; }
+    #employeesTable td:nth-child(1)::before { content: 'الاسم'; }
+    #employeesTable td:nth-child(2)::before { content: 'الإيميل'; }
+    #employeesTable td:nth-child(3)::before { content: 'الصلاحية'; }
+    #employeesTable td:nth-child(4)::before { content: 'الحالة'; }
+    .actions { display: flex !important; grid-template-columns: none !important; flex-wrap: wrap; gap: 6px; }
+    .actions::before { display: none; }
+    .actions button { margin-left: 0; flex: 1; min-width: 90px; }
+    #chatWrap { height: 58vh; }
+    .chat-bubble-row { max-width: 88%; }
+  }
 </style>
 </head>
 <body>
