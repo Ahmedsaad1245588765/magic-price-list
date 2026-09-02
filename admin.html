@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>لوحة تحكم الأسعار</title>
+<style>
+  :root {
+    --primary: #16324f;
+    --primary-light: #2874a6;
+    --accent: #e67e22;
+    --bg: #f2f5f7;
+    --card: #ffffff;
+    --text: #2c3e50;
+    --muted: #8395a7;
+    --border: #e3e8ec;
+    --danger: #c0392b;
+    --success: #1e8449;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+  header {
+    background: linear-gradient(120deg, var(--primary), #1f4e79);
+    color: #fff;
+    padding: 16px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    position: sticky; top: 0; z-index: 500;
+  }
+  header h1 { margin: 0; font-size: 19px; }
+  #signOutBtn {
+    background: rgba(255,255,255,0.15);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.4);
+    padding: 6px 14px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 13px;
+  }
+
+  #loginScreen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 80vh;
+    padding: 20px;
+    text-align: center;
+  }
+  #googleSignInBtn {
+    background: #fff;
+    border: 1px solid var(--border);
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 15px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+  }
+  .error-msg { color: var(--danger); margin-top: 16px; }
+
+  /* Tabs */
+  #tabs {
+    display: flex;
+    gap: 6px;
+    padding: 14px 20px 0;
+    overflow-x: auto;
+    max-width: 1000px;
+    margin: 0 auto;
+  }
+  .tab-btn {
+    padding: 10px 18px;
+    border-radius: 10px 10px 0 0;
+    background: #e6ebef;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .tab-btn.active { background: var(--card); color: var(--primary); font-weight: 700; }
+
+  main { padding: 20px; max-width: 1000px; margin: 0 auto; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  .card {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 18px;
+    margin-bottom: 22px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  .card h2 { margin-top: 0; font-size: 16px; color: var(--primary); }
+  .form-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+  .form-row input, .form-row select {
+    flex: 1;
+    min-width: 130px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+  }
+  button.primary {
+    background: var(--primary-light);
+    color: #fff;
+    border: none;
+    padding: 10px 18px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  button.primary:hover { background: var(--primary); }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 10px 10px; text-align: right; border-bottom: 1px solid var(--border); font-size: 13.5px; }
+  th { color: var(--muted); font-weight: 600; }
+  td input, td select { width: 100%; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; font-family: inherit; font-size: 13px; }
+  .actions button {
+    border: none;
+    padding: 6px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12.5px;
+    margin-left: 4px;
+  }
+  .save-btn { background: var(--success); color: #fff; }
+  .del-btn { background: var(--danger); color: #fff; }
+  .role-btn { background: #eef2f5; color: var(--primary); }
+  .badge { padding: 3px 10px; border-radius: 12px; font-size: 12px; display: inline-block; }
+  .badge.active { background: #eafaf1; color: var(--success); cursor: pointer; }
+  .badge.inactive { background: #fdedec; color: var(--danger); cursor: pointer; }
+  .badge.role-main { background: #eaf2f8; color: var(--primary-light); }
+  .badge.role-sub { background: #f4f4f4; color: var(--muted); }
+  .hidden { display: none !important; }
+  .muted { color: var(--muted); font-size: 13px; }
+  .you-tag { font-size: 11px; color: var(--accent); }
+
+  /* ---------- Team Chat (WhatsApp style) ---------- */
+  #chatWrap {
+    display: flex;
+    flex-direction: column;
+    height: 65vh;
+    max-height: 620px;
+    background: #eef1f6;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+  #chatMessages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .chat-bubble-row { display: flex; flex-direction: column; max-width: 70%; }
+  .chat-bubble-row.own { align-self: flex-end; align-items: flex-end; }
+  .chat-bubble-row.other { align-self: flex-start; align-items: flex-start; }
+  .chat-sender { font-size: 11px; font-weight: 700; color: var(--primary-light); margin: 0 6px 3px; }
+  .chat-bubble {
+    padding: 9px 13px;
+    border-radius: 14px;
+    font-size: 13.5px;
+    line-height: 1.5;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    word-break: break-word;
+  }
+  .chat-bubble-row.own .chat-bubble {
+    background: var(--primary-light);
+    color: #fff;
+    border-bottom-right-radius: 4px;
+  }
+  .chat-bubble-row.other .chat-bubble {
+    background: #fff;
+    color: var(--text);
+    border-bottom-left-radius: 4px;
+  }
+  .chat-time { font-size: 10px; color: var(--muted); margin: 3px 6px 0; }
+  .chat-system-row {
+    align-self: center;
+    background: #dfe4ea;
+    color: #57606f;
+    font-size: 11.5px;
+    padding: 5px 14px;
+    border-radius: 12px;
+    margin: 4px 0;
+    text-align: center;
+    max-width: 90%;
+  }
+  #chatInputBar {
+    display: flex;
+    gap: 8px;
+    padding: 10px 12px;
+    background: #fff;
+    border-top: 1px solid var(--border);
+  }
+  #chatInputBar input {
+    flex: 1;
+    padding: 11px 14px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    font-family: inherit;
+    font-size: 13.5px;
+    outline: none;
+  }
+  #chatSendBtn {
+    width: 42px; height: 42px;
+    border-radius: 50%;
+    border: none;
+    background: var(--primary-light);
+    color: #fff;
+    font-size: 17px;
+    cursor: pointer;
+    flex: 0 0 auto;
+  }
+  #chatSendBtn:hover { background: var(--primary); }
+</style>
+</head>
+<body>
+
+<div id="loginScreen">
+  <h2>لوحة تحكم الأسعار</h2>
+  <p class="muted">دخول للمصرح لهم فقط</p>
+  <button id="googleSignInBtn">تسجيل الدخول بجوجل</button>
+  <p id="loginError" class="error-msg" style="display:none;"></p>
+</div>
+
+<div id="appScreen" class="hidden">
+  <header>
+    <h1>لوحة تحكم الأسعار</h1>
+    <button id="signOutBtn">تسجيل الخروج</button>
+  </header>
+
+  <div id="tabs">
+    <button class="tab-btn active" data-tab="products">المنتجات</button>
+    <button class="tab-btn" data-tab="team">فريق العمل</button>
+    <button class="tab-btn" data-tab="log">سجل النشاط</button>
+  </div>
+
+  <main>
+
+    <div class="tab-content active" id="tab-products">
+      <div class="card">
+        <h2>➕ إضافة منتج جديد</h2>
+        <div class="form-row">
+          <input type="text" id="newName" placeholder="اسم المنتج">
+          <input type="text" id="newModel" placeholder="الموديل">
+        </div>
+        <div class="form-row">
+          <input type="number" id="newPrice" placeholder="السعر" step="0.01">
+          <input type="text" id="newColors" placeholder="الألوان (افصل بينهم بفاصلة، مثال: green, blue)">
+          <button class="primary" id="addProductBtn">إضافة</button>
+        </div>
+        <p id="addMsg" class="muted"></p>
+      </div>
+
+      <div class="card">
+        <h2>المنتجات والأسعار</h2>
+        <div id="productsTable"><p class="muted">جاري التحميل...</p></div>
+      </div>
+    </div>
+
+    <div class="tab-content" id="tab-team">
+      <div class="card">
+        <h2>➕ إضافة عضو جديد</h2>
+        <div class="form-row">
+          <input type="text" id="newEmpName" placeholder="اسم الموظف">
+          <input type="email" id="newEmpEmail" placeholder="إيميل الموظف (جيميل)">
+          <select id="newEmpRole">
+            <option value="sub">Sub user — يشوف الأسعار بس</option>
+            <option value="main">Main user — صلاحيات كاملة</option>
+          </select>
+          <button class="primary" id="addEmpBtn">إضافة</button>
+        </div>
+        <p id="addEmpMsg" class="muted"></p>
+      </div>
+
+      <div class="card">
+        <h2>أعضاء الفريق</h2>
+        <div id="employeesTable"><p class="muted">جاري التحميل...</p></div>
+      </div>
+    </div>
+
+    <div class="tab-content" id="tab-log">
+      <div class="card">
+        <h2>💬 دردشة الفريق</h2>
+        <p class="muted">كل أعضاء الفريق (Main و Sub) يقدروا يكتبوا هنا، وأي حدث تلقائي (تعديل سعر، إضافة عضو...) بيظهر هنا كمان.</p>
+        <div id="chatWrap">
+          <div id="chatMessages"></div>
+          <div id="chatInputBar">
+            <input type="text" id="chatInput" placeholder="اكتب رسالة...">
+            <button id="chatSendBtn">➤</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+  import {
+    getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
+  } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+  import {
+    getFirestore, collection, doc, setDoc, deleteDoc, updateDoc, addDoc,
+    onSnapshot, query, orderBy, where, limit, getDoc, serverTimestamp
+  } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAJo6uPyjzWB0KexX9LiIx-8SGPQzrSOEg",
+    authDomain: "magic-price-list.firebaseapp.com",
+    projectId: "magic-price-list",
+    storageBucket: "magic-price-list.firebasestorage.app",
+    messagingSenderId: "950313056936",
+    appId: "1:950313056936:web:a887ff76ca16094bf9e09d"
+  };
+
+  // إيميل الأدمن الرئيسي الافتراضي (فيه صلاحية Main دايمًا، حتى لو حصل خطأ في البيانات)
+  const SUPER_ADMIN = "ahmedsaad13k@gmail.com";
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+  const provider = new GoogleAuthProvider();
+
+  const loginScreen = document.getElementById('loginScreen');
+  const appScreen = document.getElementById('appScreen');
+  const loginError = document.getElementById('loginError');
+
+  let currentUserEmail = null;
+  let currentUserRole = null;
+  let currentUserName = null;
+
+  // ---------- تسجيل الدخول ----------
+  document.getElementById('googleSignInBtn').addEventListener('click', async () => {
+    loginError.style.display = 'none';
+    try {
+      await signInWithPopup(auth, provider);
+    } catch (e) {
+      loginError.textContent = 'تعذر تسجيل الدخول.';
+      loginError.style.display = 'block';
+    }
+  });
+
+  document.getElementById('signOutBtn').addEventListener('click', () => signOut(auth));
+
+  onAuthStateChanged(auth, async user => {
+    if (!user) {
+      appScreen.classList.add('hidden');
+      loginScreen.classList.remove('hidden');
+      return;
+    }
+    currentUserEmail = user.email;
+
+    // تفعيل ذاتي للأدمن الرئيسي الافتراضي أول مرة يدخل
+    if (user.email === SUPER_ADMIN) {
+      await setDoc(doc(db, 'employees', user.email), {
+        email: user.email, active: true, role: 'main',
+        name: user.displayName || 'المدير'
+      }, { merge: true });
+    }
+
+    const empSnap = await getDoc(doc(db, 'employees', user.email));
+    const isMain = user.email === SUPER_ADMIN ||
+      (empSnap.exists() && empSnap.data().role === 'main' && empSnap.data().active === true);
+
+    if (!isMain) {
+      loginError.textContent = 'هذا الحساب ليس لديه صلاحية Main user للدخول للوحة التحكم.';
+      loginError.style.display = 'block';
+      await signOut(auth);
+      return;
+    }
+
+    currentUserRole = 'main';
+    currentUserName = (empSnap.exists() && empSnap.data().name) || user.displayName || user.email;
+    loginScreen.classList.add('hidden');
+    appScreen.classList.remove('hidden');
+    initTabs();
+    loadProducts();
+    loadEmployees();
+    startChat();
+  });
+
+  function escapeAttr(str) {
+    const d = document.createElement('div');
+    d.textContent = String(str ?? '');
+    return d.innerHTML;
+  }
+
+  async function logActivity(message) {
+    try {
+      await addDoc(collection(db, 'activity_log'), {
+        message,
+        byEmail: currentUserEmail,
+        type: 'system',
+        timestamp: Date.now()
+      });
+    } catch (e) { /* تجاهل فشل السجل حتى لا يوقف العملية الأساسية */ }
+  }
+
+  // ---------- Tabs ----------
+  function initTabs() {
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+      });
+    });
+  }
+
+  // ---------- المنتجات ----------
+  function loadProducts() {
+    const q = query(collection(db, 'products'), orderBy('name'));
+    onSnapshot(q, snap => {
+      const wrap = document.getElementById('productsTable');
+      if (snap.empty) {
+        wrap.innerHTML = '<p class="muted">لا توجد منتجات بعد.</p>';
+        return;
+      }
+      let html = '<table><thead><tr><th>الاسم</th><th>الموديل</th><th>السعر</th><th>الألوان</th><th></th></tr></thead><tbody>';
+      snap.forEach(d => {
+        const p = d.data();
+        const colorsStr = Array.isArray(p.colors) ? p.colors.join(', ') : '';
+        html += `<tr data-id="${d.id}" data-old-price="${escapeAttr(p.price ?? '')}" data-old-name="${escapeAttr(p.name ?? '')}">
+          <td><input class="f-name" value="${escapeAttr(p.name || '')}"></td>
+          <td><input class="f-model" value="${escapeAttr(p.model || '')}"></td>
+          <td><input class="f-price" type="number" step="0.01" value="${escapeAttr(p.price ?? '')}"></td>
+          <td><input class="f-colors" value="${escapeAttr(colorsStr)}"></td>
+          <td class="actions">
+            <button class="save-btn">حفظ</button>
+            <button class="del-btn">حذف</button>
+          </td>
+        </tr>`;
+      });
+      html += '</tbody></table>';
+      wrap.innerHTML = html;
+
+      wrap.querySelectorAll('tbody tr').forEach(row => {
+        const id = row.dataset.id;
+        row.querySelector('.save-btn').addEventListener('click', async () => {
+          const name = row.querySelector('.f-name').value.trim();
+          const model = row.querySelector('.f-model').value.trim();
+          const price = parseFloat(row.querySelector('.f-price').value);
+          const colors = row.querySelector('.f-colors').value.split(',').map(c => c.trim()).filter(Boolean);
+          const oldPrice = row.dataset.oldPrice;
+          await updateDoc(doc(db, 'products', id), { name, model, price, colors });
+          if (String(price) !== String(oldPrice)) {
+            await logActivity(`تم تغيير سعر "${name}" من ${oldPrice} إلى ${price} ج.م`);
+          } else {
+            await logActivity(`تم تعديل بيانات منتج "${name}"`);
+          }
+        });
+        row.querySelector('.del-btn').addEventListener('click', async () => {
+          const name = row.dataset.oldName;
+          if (confirm(`متأكد من حذف "${name}"؟`)) {
+            await deleteDoc(doc(db, 'products', id));
+            await logActivity(`تم حذف منتج "${name}"`);
+          }
+        });
+      });
+    });
+  }
+
+  document.getElementById('addProductBtn').addEventListener('click', async () => {
+    const name = document.getElementById('newName').value.trim();
+    const model = document.getElementById('newModel').value.trim();
+    const price = parseFloat(document.getElementById('newPrice').value);
+    const colors = document.getElementById('newColors').value.split(',').map(c => c.trim()).filter(Boolean);
+    const msg = document.getElementById('addMsg');
+    if (!name || isNaN(price)) {
+      msg.textContent = 'من فضلك اكتب اسم المنتج والسعر.';
+      msg.style.color = '#c0392b';
+      return;
+    }
+    const id = crypto.randomUUID();
+    await setDoc(doc(db, 'products', id), { name, model, price, colors });
+    await logActivity(`تمت إضافة منتج جديد: "${name}" بسعر ${price} ج.م`);
+    document.getElementById('newName').value = '';
+    document.getElementById('newModel').value = '';
+    document.getElementById('newPrice').value = '';
+    document.getElementById('newColors').value = '';
+    msg.textContent = 'تمت الإضافة بنجاح.';
+    msg.style.color = '#1e8449';
+    setTimeout(() => msg.textContent = '', 2500);
+  });
+
+  // ---------- فريق العمل ----------
+  function loadEmployees() {
+    const q = query(collection(db, 'employees'), orderBy('email'));
+    onSnapshot(q, snap => {
+      const wrap = document.getElementById('employeesTable');
+      if (snap.empty) {
+        wrap.innerHTML = '<p class="muted">لا يوجد أعضاء مضافون بعد.</p>';
+        return;
+      }
+      let html = '<table><thead><tr><th>الاسم</th><th>الإيميل</th><th>الصلاحية</th><th>الحالة</th><th></th></tr></thead><tbody>';
+      snap.forEach(d => {
+        const e = d.data();
+        const isSelf = d.id === currentUserEmail;
+        const isSuper = d.id === SUPER_ADMIN;
+        html += `<tr data-id="${d.id}" data-role="${e.role || 'sub'}">
+          <td><input class="f-emp-name" value="${escapeAttr(e.name || '')}" placeholder="بدون اسم"></td>
+          <td>${escapeAttr(e.email || d.id)} ${isSelf ? '<span class="you-tag">(أنت)</span>' : ''}</td>
+          <td><span class="badge ${e.role === 'main' ? 'role-main' : 'role-sub'}">${e.role === 'main' ? 'Main user' : 'Sub user'}</span></td>
+          <td><span class="badge ${e.active ? 'active' : 'inactive'} toggle-active">${e.active ? 'مفعّل' : 'موقوف'}</span></td>
+          <td class="actions">
+            <button class="save-btn save-name-btn">حفظ الاسم</button>
+            ${(!isSelf && !isSuper) ? `<button class="role-btn">${e.role === 'main' ? 'تحويل لـ Sub' : 'ترقية لـ Main'}</button><button class="del-btn">حذف</button>` : '<span class="muted">—</span>'}
+          </td>
+        </tr>`;
+      });
+      html += '</tbody></table>';
+      wrap.innerHTML = html;
+
+      wrap.querySelectorAll('tbody tr').forEach(row => {
+        const id = row.dataset.id;
+        const isSelf = id === currentUserEmail;
+        const isSuper = id === SUPER_ADMIN;
+
+        row.querySelector('.save-name-btn').addEventListener('click', async () => {
+          const name = row.querySelector('.f-emp-name').value.trim();
+          await updateDoc(doc(db, 'employees', id), { name });
+          await logActivity(`تم تحديث اسم العضو ${id} إلى "${name}"`);
+        });
+
+        row.querySelector('.toggle-active').addEventListener('click', async (e) => {
+          if (isSuper) { alert('لا يمكن إيقاف حساب الأدمن الرئيسي.'); return; }
+          const isActive = e.target.textContent.trim() === 'مفعّل';
+          await updateDoc(doc(db, 'employees', id), { active: !isActive });
+          await logActivity(`تم ${isActive ? 'إيقاف' : 'تفعيل'} حساب ${id}`);
+        });
+
+        const roleBtn = row.querySelector('.role-btn');
+        if (roleBtn) {
+          roleBtn.addEventListener('click', async () => {
+            const currentRole = row.dataset.role;
+            const newRole = currentRole === 'main' ? 'sub' : 'main';
+            await updateDoc(doc(db, 'employees', id), { role: newRole });
+            await logActivity(`تم تغيير صلاحية ${id} إلى ${newRole === 'main' ? 'Main user' : 'Sub user'}`);
+          });
+        }
+        const delBtn = row.querySelector('.del-btn');
+        if (delBtn) {
+          delBtn.addEventListener('click', async () => {
+            if (confirm(`متأكد من حذف ${id} من الفريق؟`)) {
+              await deleteDoc(doc(db, 'employees', id));
+              await logActivity(`تم حذف عضو: ${id}`);
+            }
+          });
+        }
+      });
+    });
+  }
+
+  document.getElementById('addEmpBtn').addEventListener('click', async () => {
+    const name = document.getElementById('newEmpName').value.trim();
+    const email = document.getElementById('newEmpEmail').value.trim().toLowerCase();
+    const role = document.getElementById('newEmpRole').value;
+    const msg = document.getElementById('addEmpMsg');
+    if (!email || !email.includes('@')) {
+      msg.textContent = 'من فضلك اكتب إيميل صحيح.';
+      msg.style.color = '#c0392b';
+      return;
+    }
+    await setDoc(doc(db, 'employees', email), { email, name, active: true, role });
+    await logActivity(`تمت إضافة عضو جديد: ${name || email} (${role === 'main' ? 'Main user' : 'Sub user'})`);
+    document.getElementById('newEmpName').value = '';
+    document.getElementById('newEmpEmail').value = '';
+    msg.textContent = 'تمت الإضافة بنجاح.';
+    msg.style.color = '#1e8449';
+    setTimeout(() => msg.textContent = '', 2500);
+  });
+
+  // ---------- دردشة الفريق ----------
+  const chatMessages = document.getElementById('chatMessages');
+  const chatInput = document.getElementById('chatInput');
+  const chatSendBtn = document.getElementById('chatSendBtn');
+
+  function formatChatTime(ts) {
+    if (!ts) return '';
+    return new Date(ts).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function renderChatMessages(list) {
+    if (!list.length) {
+      chatMessages.innerHTML = '<p class="muted" style="text-align:center;margin-top:20px;">لا توجد رسائل بعد.</p>';
+      return;
+    }
+    const wasAtBottom = chatMessages.scrollTop + chatMessages.clientHeight >= chatMessages.scrollHeight - 40;
+    chatMessages.innerHTML = list.map(m => {
+      if (m.type === 'system') {
+        return `<div class="chat-system-row">${escapeAttr(m.message)}</div>`;
+      }
+      const isOwn = m.byEmail === currentUserEmail;
+      const senderLabel = isOwn ? '' : `<div class="chat-sender">${escapeAttr(m.byName || m.byEmail || '')}</div>`;
+      return `
+        <div class="chat-bubble-row ${isOwn ? 'own' : 'other'}">
+          ${senderLabel}
+          <div class="chat-bubble">${escapeAttr(m.message)}</div>
+          <div class="chat-time">${formatChatTime(m.timestamp)}</div>
+        </div>`;
+    }).join('');
+    if (wasAtBottom) chatMessages.scrollTop = chatMessages.scrollHeight;
+  }
+
+  function startChat() {
+    const q = query(collection(db, 'activity_log'), orderBy('timestamp', 'asc'), limit(200));
+    onSnapshot(q, snap => {
+      const list = snap.docs.map(d => d.data());
+      renderChatMessages(list);
+    });
+    setTimeout(() => { chatMessages.scrollTop = chatMessages.scrollHeight; }, 300);
+  }
+
+  async function sendChatMessage() {
+    const text = chatInput.value.trim();
+    if (!text) return;
+    chatInput.value = '';
+    try {
+      await addDoc(collection(db, 'activity_log'), {
+        message: text,
+        byEmail: currentUserEmail,
+        byName: currentUserName || currentUserEmail,
+        type: 'chat',
+        timestamp: Date.now()
+      });
+    } catch (e) {
+      alert('تعذر إرسال الرسالة، حاول مرة أخرى.');
+    }
+  }
+  chatSendBtn.addEventListener('click', sendChatMessage);
+  chatInput.addEventListener('keydown', e => { if (e.key === 'Enter') sendChatMessage(); });
+
+</script>
+</body>
+</html>

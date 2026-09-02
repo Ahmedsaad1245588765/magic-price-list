@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>قائمة أسعار المنتجات</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --primary: #1a2a4a;
+    --primary-2: #24365f;
+    --accent: #ff8a3d;
+    --accent-2: #ffb17a;
+    --bg: #f4f6fa;
+    --card: #ffffff;
+    --text: #1e2635;
+    --muted: #8a93a6;
+    --border: #e9edf3;
+    --danger: #e0524b;
+    --success: #1fa971;
+    --shadow: 0 4px 18px rgba(23, 35, 66, 0.07);
+    --shadow-hover: 0 10px 30px rgba(23, 35, 66, 0.14);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'Cairo', 'Segoe UI', Tahoma, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    user-select: none;
+    -webkit-user-select: none;
+    min-height: 100vh;
+  }
+
+  header {
+    background: linear-gradient(125deg, var(--primary), var(--primary-2) 60%, #2f2158);
+    color: #fff;
+    padding: 18px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    position: sticky;
+    top: 0;
+    z-index: 500;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+  }
+  header h1 {
+    margin: 0;
+    font-size: 19px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  #userInfo { font-size: 13px; display: flex; align-items: center; gap: 10px; }
+  #adminLinkBtn {
+    background: rgba(255,255,255,0.14);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.35);
+    padding: 7px 16px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 13px;
+    font-family: inherit;
+    font-weight: 600;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: 0.15s;
+  }
+  #adminLinkBtn:hover { background: rgba(255,255,255,0.28); }
+  #signOutBtn {
+    background: transparent;
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.4);
+    padding: 7px 16px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 13px;
+    font-family: inherit;
+    font-weight: 600;
+    transition: 0.15s;
+  }
+  #signOutBtn:hover { background: rgba(255,255,255,0.18); }
+
+  #loginScreen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 92vh;
+    padding: 20px;
+    text-align: center;
+    background:
+      radial-gradient(circle at 15% 20%, rgba(255,138,61,0.10), transparent 40%),
+      radial-gradient(circle at 85% 80%, rgba(36,54,95,0.10), transparent 45%);
+  }
+  #loginScreen h2 {
+    margin-bottom: 8px;
+    font-size: 26px;
+    font-weight: 800;
+    color: var(--primary);
+  }
+  #loginScreen p { color: var(--muted); margin-bottom: 26px; font-size: 14.5px; }
+  #googleSignInBtn {
+    background: #fff;
+    border: 1px solid var(--border);
+    padding: 13px 26px;
+    border-radius: 12px;
+    font-size: 15px;
+    font-family: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: var(--shadow);
+    transition: 0.2s;
+  }
+  #googleSignInBtn:hover { box-shadow: var(--shadow-hover); transform: translateY(-1px); }
+  #googleSignInBtn img { width: 20px; height: 20px; }
+
+  main { max-width: 1050px; margin: 0 auto; padding-bottom: 40px; }
+
+  .welcome-banner {
+    margin: 18px 20px 0;
+    background: linear-gradient(120deg, #fff, #f8fafc);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 18px 22px;
+    box-shadow: var(--shadow);
+    opacity: 1;
+    max-height: 200px;
+    overflow: hidden;
+    transition: opacity 0.6s ease, max-height 0.6s ease, padding 0.6s ease, margin 0.6s ease;
+  }
+  .welcome-banner.fade-out {
+    opacity: 0;
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    margin-top: 0;
+    margin-bottom: 0;
+    border-width: 0;
+  }
+  .welcome-banner h2 {
+    margin: 0 0 4px;
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--primary);
+  }
+  .welcome-banner p {
+    margin: 0;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .welcome-banner .role-pill {
+    display: inline-block;
+    margin-top: 10px;
+    font-size: 11.5px;
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: 12px;
+    background: #eef2ff;
+    color: var(--primary-2);
+    border: 1px solid var(--border);
+  }
+
+  .toolbar { padding: 16px 20px 0; }
+  .search-bar {
+    display: flex;
+    gap: 10px;
+  }
+  .search-bar input {
+    padding: 13px 16px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    font-size: 15px;
+    font-family: inherit;
+    background: #fff;
+    box-shadow: var(--shadow);
+    outline: none;
+    transition: 0.15s;
+  }
+  .search-bar input:focus { box-shadow: 0 0 0 3px rgba(255,138,61,0.18); }
+  #searchInput { flex: 1; min-width: 0; }
+  #priceSearchInput { width: 130px; flex: 0 0 auto; }
+
+  #productBar {
+    display: flex; gap: 8px; overflow-x: auto; padding: 16px 20px;
+    scrollbar-width: thin;
+  }
+  #productBar::-webkit-scrollbar { height: 5px; }
+  #productBar::-webkit-scrollbar-thumb { background: #cfd8dc; border-radius: 10px; }
+  .product-chip {
+    flex: 0 0 auto; padding: 9px 20px; border-radius: 20px; background: #fff;
+    border: 1px solid var(--border); font: inherit; font-size: 13px; font-weight: 600;
+    cursor: pointer; white-space: nowrap; color: var(--text);
+  }
+  .product-chip:hover { border-color: var(--accent); color: var(--accent); }
+  .product-chip.active { background: linear-gradient(120deg, var(--accent), var(--accent-2)); color: #fff; border-color: transparent; box-shadow: 0 4px 12px rgba(255,138,61,0.35); }
+
+  #productsGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(235px, 1fr));
+    gap: 16px;
+    padding: 4px 20px 20px;
+  }
+  .p-card {
+    background: var(--card);
+    border-radius: 16px;
+    padding: 18px;
+    box-shadow: var(--shadow);
+    transition: 0.2s;
+    border: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+  }
+  .p-card:hover { box-shadow: var(--shadow-hover); transform: translateY(-3px); }
+  .p-name { font-size: 16px; font-weight: 800; margin: 0 0 12px; line-height: 1.35; }
+  .p-details {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    padding-top: 10px;
+    border-top: 1px dashed var(--border);
+    margin-top: auto;
+  }
+  .p-price { font-size: 18px; font-weight: 800; color: var(--accent); white-space: nowrap; }
+  .p-price small { font-size: 11.5px; color: var(--muted); font-weight: 500; }
+  .p-model { font-size: 12px; color: var(--muted); font-weight: 600; }
+  .p-colors { display: flex; gap: 6px; margin-top: 12px; flex-wrap: wrap; }
+  .p-color { background: #eef2ff; color: var(--primary-2); border-radius: 9px; padding: 3px 9px; font-size: 11px; font-weight: 700; }
+
+  #chatToggle { position: relative; width: 38px; height: 38px; border: 1px solid rgba(255,255,255,0.4); border-radius: 50%; background: rgba(255,255,255,0.12); color: #fff; cursor: pointer; font-size: 18px; }
+  #chatBadge { position: absolute; top: -7px; left: -7px; min-width: 19px; height: 19px; padding: 0 5px; border-radius: 10px; background: var(--danger); color: #fff; font-size: 10px; font-weight: 800; line-height: 19px; }
+  #chatModal { position: fixed; inset: 0; z-index: 1000; background: rgba(15, 25, 45, 0.42); display: flex; align-items: center; justify-content: center; padding: 18px; }
+  #chatPanel { width: min(560px, 100%); height: min(620px, 86vh); background: var(--card); border-radius: 18px; box-shadow: 0 20px 50px rgba(0,0,0,0.28); overflow: hidden; display: flex; flex-direction: column; }
+  #chatHeader { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; color: #fff; background: var(--primary); }
+  #chatHeader h2 { margin: 0; font-size: 16px; }
+  #chatCloseBtn { border: none; background: transparent; color: #fff; font-size: 26px; cursor: pointer; line-height: 1; }
+  #chatMessages { flex: 1; overflow-y: auto; padding: 14px; background: #f7f9fc; display: flex; flex-direction: column; gap: 8px; }
+  .chat-bubble-row { display: flex; flex-direction: column; max-width: 75%; }
+  .chat-bubble-row.own { align-self: flex-end; align-items: flex-end; }
+  .chat-bubble-row.other { align-self: flex-start; align-items: flex-start; }
+  .chat-sender { font-size: 11px; font-weight: 700; color: var(--primary-2); margin: 0 6px 3px; }
+  .chat-bubble { padding: 9px 13px; border-radius: 14px; font-size: 13px; word-break: break-word; }
+  .own .chat-bubble { background: var(--primary-2); color: #fff; border-bottom-right-radius: 4px; }
+  .other .chat-bubble { background: #fff; border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+  .chat-time { font-size: 10px; color: var(--muted); margin: 3px 6px 0; }
+  #chatInputBar { display: flex; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--border); }
+  #chatInput { flex: 1; padding: 11px 14px; border: 1px solid var(--border); border-radius: 20px; font: inherit; outline: none; }
+  #chatSendBtn, #recordVoiceBtn { border: none; border-radius: 20px; padding: 0 18px; background: var(--primary-2); color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
+  #recordVoiceBtn { width: 42px; padding: 0; font-size: 18px; }
+  #recordVoiceBtn.recording { background: var(--danger); animation: record-pulse 1s infinite; }
+  .chat-audio { width: min(250px, 100%); margin-top: 7px; height: 34px; }
+  @keyframes record-pulse { 50% { opacity: 0.62; } }
+
+  .empty-msg, .error-msg, .loading-msg {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+    grid-column: 1 / -1;
+  }
+  .error-msg { color: var(--danger); }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div id="loginScreen">
+  <h2>قائمة أسعار المنتجات</h2>
+  <p>سجّل الدخول بحساب جوجل الخاص بك للاطلاع على الأسعار</p>
+  <button id="googleSignInBtn">
+    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google">
+    تسجيل الدخول بجوجل
+  </button>
+  <p id="loginError" class="error-msg" style="display:none; margin-top:16px; padding:0;"></p>
+</div>
+
+<div id="appScreen" class="hidden">
+  <header>
+    <h1>قائمة أسعار المنتجات</h1>
+    <div id="userInfo">
+      <a id="adminLinkBtn" href="admin.html" class="hidden">لوحة التحكم</a>
+      <button id="chatToggle" type="button" aria-label="فتح رسائل الفريق">💬<span id="chatBadge" class="hidden">0</span></button>
+      <button id="signOutBtn">تسجيل الخروج</button>
+    </div>
+  </header>
+  <main>
+    <div id="welcomeBanner" class="welcome-banner"></div>
+    <div class="toolbar">
+      <div class="search-bar">
+        <input type="text" id="searchInput" placeholder="ابحث عن اسم المنتج أو الموديل...">
+        <input type="text" id="priceSearchInput" placeholder="بحث بالسعر...">
+      </div>
+    </div>
+    <div id="productBar"></div>
+    <div id="productsGrid">
+      <p class="loading-msg">جاري تحميل الأسعار...</p>
+    </div>
+  </main>
+</div>
+
+<div id="chatModal" class="hidden" role="dialog" aria-modal="true" aria-label="رسائل الفريق">
+  <div id="chatPanel">
+    <div id="chatHeader"><h2>💬 رسائل الفريق</h2><button id="chatCloseBtn" type="button" aria-label="إغلاق">×</button></div>
+    <div id="chatMessages"></div>
+    <div id="chatInputBar">
+      <input type="text" id="chatInput" placeholder="اكتب رسالة...">
+      <button id="recordVoiceBtn" type="button" aria-label="تسجيل رسالة صوتية" title="تسجيل رسالة صوتية">🎙</button>
+      <button id="chatSendBtn">إرسال</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+  import {
+    getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
+  } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+  import {
+    getFirestore, doc, getDoc, setDoc, onSnapshot, collection, query, orderBy, addDoc, limit
+  } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+  import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-storage.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAJo6uPyjzWB0KexX9LiIx-8SGPQzrSOEg",
+    authDomain: "magic-price-list.firebaseapp.com",
+    projectId: "magic-price-list",
+    storageBucket: "magic-price-list.firebasestorage.app",
+    messagingSenderId: "950313056936",
+    appId: "1:950313056936:web:a887ff76ca16094bf9e09d"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+  const storage = getStorage(app);
+  const provider = new GoogleAuthProvider();
+
+  const loginScreen = document.getElementById('loginScreen');
+  const appScreen = document.getElementById('appScreen');
+  const loginError = document.getElementById('loginError');
+  const productsGrid = document.getElementById('productsGrid');
+  const searchInput = document.getElementById('searchInput');
+  const priceSearchInput = document.getElementById('priceSearchInput');
+  const productBar = document.getElementById('productBar');
+  const adminLinkBtn = document.getElementById('adminLinkBtn');
+  const welcomeBanner = document.getElementById('welcomeBanner');
+
+  const SESSION_KEY = 'pricePortalSessionToken';
+  let sessionUnsub = null;
+  let productsUnsub = null;
+  let allProducts = [];
+  let activeProductName = 'الكل';
+  let currentUserEmail = '';
+  let currentUserName = '';
+  let chatMessagesCache = [];
+  let chatOpen = false;
+
+  function showError(msg) {
+    loginError.textContent = msg;
+    loginError.style.display = 'block';
+  }
+
+  function escapeHtml(str) {
+    const d = document.createElement('div');
+    d.textContent = String(str ?? '');
+    return d.innerHTML;
+  }
+
+  function formatPrice(price) {
+    const num = Number(price);
+    if (isNaN(num)) return escapeHtml(price ?? '');
+    return num.toLocaleString('ar-EG');
+  }
+
+  function renderProductBar() {
+    const names = ['الكل', ...new Set(allProducts.map(p => p.name).filter(Boolean))];
+    if (!names.includes(activeProductName)) activeProductName = 'الكل';
+    productBar.innerHTML = names.map(name =>
+      `<button class="product-chip ${name === activeProductName ? 'active' : ''}" data-name="${escapeHtml(name)}">${escapeHtml(name)}</button>`
+    ).join('');
+    productBar.querySelectorAll('.product-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        activeProductName = chip.dataset.name;
+        renderProductBar();
+        applyFilters();
+      });
+    });
+  }
+
+  function renderProducts(list) {
+    if (!list.length) {
+      productsGrid.innerHTML = '<p class="empty-msg">لا توجد منتجات مطابقة للبحث.</p>';
+      return;
+    }
+    productsGrid.innerHTML = list.map(p => {
+      const colors = Array.isArray(p.colors) ? p.colors : [];
+      const colorsHtml = colors.map(c => `<span class="p-color">${escapeHtml(c)}</span>`).join('');
+      return `
+        <div class="p-card">
+          <div class="p-name">${escapeHtml(p.name || '')}</div>
+          <div class="p-details">
+            ${p.model ? `<div class="p-model">${escapeHtml(p.model)}</div>` : '<div></div>'}
+            <div class="p-price">${formatPrice(p.price)} <small>ج.م</small></div>
+          </div>
+          ${colorsHtml ? `<div class="p-colors">${colorsHtml}</div>` : ''}
+        </div>`;
+    }).join('');
+  }
+
+  function applyFilters() {
+    const q = searchInput.value.trim().toLowerCase();
+    const priceQ = priceSearchInput.value.trim().toLowerCase();
+    let filtered = allProducts;
+    if (activeProductName !== 'الكل') {
+      filtered = filtered.filter(p => p.name === activeProductName);
+    }
+    if (q) {
+      filtered = filtered.filter(p =>
+        (p.name || '').toLowerCase().includes(q) ||
+        (p.model || '').toLowerCase().includes(q)
+      );
+    }
+    if (priceQ) {
+      filtered = filtered.filter(p => String(p.price ?? '').toLowerCase().includes(priceQ));
+    }
+    renderProducts(filtered);
+  }
+
+  searchInput.addEventListener('input', applyFilters);
+  priceSearchInput.addEventListener('input', applyFilters);
+
+  function loadProducts() {
+    const q = query(collection(db, 'products'), orderBy('name'));
+    productsUnsub = onSnapshot(q, snap => {
+      allProducts = snap.docs.map(d => d.data());
+      renderProductBar();
+      applyFilters();
+    }, err => {
+      productsGrid.innerHTML = '<p class="error-msg">حدث خطأ أثناء تحميل الأسعار.</p>';
+    });
+  }
+
+  function startSessionGuard(email) {
+    sessionUnsub = onSnapshot(doc(db, 'sessions', email), snap => {
+      if (!snap.exists()) return;
+      const remoteToken = snap.data().token;
+      const localToken = localStorage.getItem(SESSION_KEY);
+      if (remoteToken && localToken && remoteToken !== localToken) {
+        alert('تم تسجيل الدخول لحسابك من جهاز آخر، سيتم تسجيل خروجك من هنا.');
+        doSignOut();
+      }
+    });
+  }
+
+  async function handleSignedInUser(user) {
+    const email = user.email;
+    currentUserEmail = email;
+    currentUserName = user.displayName || email;
+    const empRef = doc(db, 'employees', email);
+    let empSnap;
+    try {
+      empSnap = await getDoc(empRef);
+    } catch (e) {
+      showError('حدث خطأ أثناء التحقق من صلاحية حسابك. حاول مرة أخرى.');
+      await signOut(auth);
+      return;
+    }
+
+    if (!empSnap.exists() || empSnap.data().active !== true) {
+      showError('هذا الحساب غير مسجل أو غير مفعّل. تواصل مع الإدارة.');
+      await signOut(auth);
+      return;
+    }
+
+    const empData = empSnap.data();
+    loginScreen.classList.add('hidden');
+    appScreen.classList.remove('hidden');
+
+    const isMain = empData.role === 'main';
+    adminLinkBtn.classList.toggle('hidden', !isMain);
+
+    const roleLabel = isMain ? 'Main user' : 'Sub user';
+    welcomeBanner.classList.remove('fade-out');
+    welcomeBanner.innerHTML = `
+      <h2>مرحباً بك في ماجيك${empData.name ? '، ' + escapeHtml(empData.name) : ''} 👋</h2>
+      <p>مسجّل الدخول بإيميل: ${escapeHtml(email)}</p>
+      <span class="role-pill">${roleLabel}</span>
+    `;
+    setTimeout(() => welcomeBanner.classList.add('fade-out'), 3000);
+
+    // فشل إنشاء سجل الجلسة لا يجب أن يمنع الموظف المصرح له من الدخول.
+    try {
+      const token = crypto.randomUUID();
+      localStorage.setItem(SESSION_KEY, token);
+      await setDoc(doc(db, 'sessions', email), { token, updatedAt: Date.now() });
+      startSessionGuard(email);
+    } catch (e) {
+      console.warn('Session guard is unavailable.', e);
+    }
+    loadProducts();
+    startChat();
+  }
+
+  async function doSignOut() {
+    localStorage.removeItem(SESSION_KEY);
+    if (sessionUnsub) sessionUnsub();
+    if (productsUnsub) productsUnsub();
+    closeChat();
+    await signOut(auth);
+  }
+
+  document.getElementById('googleSignInBtn').addEventListener('click', async () => {
+    loginError.style.display = 'none';
+    try {
+      await signInWithPopup(auth, provider);
+    } catch (e) {
+      showError('تعذر تسجيل الدخول. حاول مرة أخرى.');
+    }
+  });
+
+  document.getElementById('signOutBtn').addEventListener('click', doSignOut);
+
+  const chatMessages = document.getElementById('chatMessages');
+  const chatInput = document.getElementById('chatInput');
+  const chatSendBtn = document.getElementById('chatSendBtn');
+  const recordVoiceBtn = document.getElementById('recordVoiceBtn');
+  const chatToggle = document.getElementById('chatToggle');
+  const chatModal = document.getElementById('chatModal');
+  const chatCloseBtn = document.getElementById('chatCloseBtn');
+  const chatBadge = document.getElementById('chatBadge');
+  const CHAT_READ_KEY_PREFIX = 'pricePortalChatReadAt:';
+  let mediaRecorder = null;
+  let recordingStream = null;
+  let recordingChunks = [];
+  let recordingTimer = null;
+
+  function formatChatTime(timestamp) {
+    return timestamp ? new Date(timestamp).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }) : '';
+  }
+
+  function latestChatTimestamp() {
+    return chatMessagesCache.reduce((latest, message) => Math.max(latest, Number(message.timestamp) || 0), 0);
+  }
+
+  function updateUnreadBadge() {
+    const readAt = Number(localStorage.getItem(CHAT_READ_KEY_PREFIX + currentUserEmail)) || 0;
+    const unread = chatMessagesCache.filter(message =>
+      message.type === 'chat' && message.byEmail !== currentUserEmail && Number(message.timestamp) > readAt
+    ).length;
+    chatBadge.textContent = unread > 99 ? '99+' : unread;
+    chatBadge.classList.toggle('hidden', unread === 0);
+  }
+
+  function markChatAsRead() {
+    if (!currentUserEmail) return;
+    localStorage.setItem(CHAT_READ_KEY_PREFIX + currentUserEmail, String(latestChatTimestamp()));
+    updateUnreadBadge();
+  }
+
+  function openChat() {
+    chatOpen = true;
+    chatModal.classList.remove('hidden');
+    markChatAsRead();
+    requestAnimationFrame(() => { chatMessages.scrollTop = chatMessages.scrollHeight; });
+    chatInput.focus();
+  }
+
+  function closeChat() {
+    chatOpen = false;
+    chatModal.classList.add('hidden');
+  }
+
+  function startChat() {
+    onSnapshot(query(collection(db, 'activity_log'), orderBy('timestamp', 'asc'), limit(200)), snap => {
+      chatMessagesCache = snap.docs.map(d => d.data());
+      chatMessages.innerHTML = chatMessagesCache.length ? chatMessagesCache.map(m => {
+        const isOwn = m.byEmail === currentUserEmail;
+        const sender = isOwn ? '' : `<div class="chat-sender">${escapeHtml(m.byName || m.byEmail || 'النظام')}</div>`;
+        const audio = m.audioUrl ? `<audio class="chat-audio" controls preload="metadata" src="${escapeHtml(m.audioUrl)}"></audio>` : '';
+        return `<div class="chat-bubble-row ${isOwn ? 'own' : 'other'}">${sender}<div class="chat-bubble">${m.audioUrl ? '🎙 رسالة صوتية' : escapeHtml(m.message || '')}${audio}</div><div class="chat-time">${formatChatTime(m.timestamp)}</div></div>`;
+      }).join('') : '<p class="empty-msg" style="padding:25px;">لا توجد رسائل بعد.</p>';
+      if (chatOpen) {
+        markChatAsRead();
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+      } else {
+        updateUnreadBadge();
+      }
+    });
+  }
+
+  async function sendChatMessage() {
+    const message = chatInput.value.trim();
+    if (!message || !currentUserEmail) return;
+    chatInput.value = '';
+    try {
+      await addDoc(collection(db, 'activity_log'), { message, byEmail: currentUserEmail, byName: currentUserName, type: 'chat', timestamp: Date.now() });
+    } catch (e) {
+      alert('تعذر إرسال الرسالة. تأكد من صلاحية الكتابة في Firebase.');
+    }
+  }
+
+  function setRecordingState(isRecording) {
+    recordVoiceBtn.classList.toggle('recording', isRecording);
+    recordVoiceBtn.textContent = isRecording ? '■' : '🎙';
+    recordVoiceBtn.title = isRecording ? 'إنهاء وإرسال التسجيل' : 'تسجيل رسالة صوتية';
+    chatInput.disabled = isRecording;
+    chatSendBtn.disabled = isRecording;
+  }
+
+  async function startVoiceRecording() {
+    try {
+      recordingStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      recordingChunks = [];
+      mediaRecorder = new MediaRecorder(recordingStream);
+      mediaRecorder.addEventListener('dataavailable', event => {
+        if (event.data.size) recordingChunks.push(event.data);
+      });
+      mediaRecorder.addEventListener('stop', uploadVoiceRecording, { once: true });
+      mediaRecorder.start();
+      setRecordingState(true);
+      recordingTimer = setTimeout(stopVoiceRecording, 120000);
+    } catch (e) {
+      alert('تعذر استخدام الميكروفون. اسمح للمتصفح بالوصول إلى الميكروفون ثم حاول مرة أخرى.');
+    }
+  }
+
+  function stopVoiceRecording() {
+    if (!mediaRecorder || mediaRecorder.state === 'inactive') return;
+    clearTimeout(recordingTimer);
+    mediaRecorder.stop();
+    recordingStream?.getTracks().forEach(track => track.stop());
+    setRecordingState(false);
+  }
+
+  async function uploadVoiceRecording() {
+    const mimeType = mediaRecorder?.mimeType || 'audio/webm';
+    const audioBlob = new Blob(recordingChunks, { type: mimeType });
+    mediaRecorder = null;
+    recordingStream = null;
+    if (!audioBlob.size || !currentUserEmail) return;
+    try {
+      const extension = mimeType.includes('ogg') ? 'ogg' : 'webm';
+      const filePath = `chat_audio/${currentUserEmail}/${Date.now()}-${crypto.randomUUID()}.${extension}`;
+      const audioRef = ref(storage, filePath);
+      await uploadBytes(audioRef, audioBlob, { contentType: mimeType });
+      const audioUrl = await getDownloadURL(audioRef);
+      await addDoc(collection(db, 'activity_log'), {
+        message: 'رسالة صوتية', audioUrl, byEmail: currentUserEmail,
+        byName: currentUserName, type: 'chat', timestamp: Date.now()
+      });
+    } catch (e) {
+      alert('تعذر إرسال التسجيل. تأكد من نشر قواعد Firebase Storage.');
+    }
+  }
+  chatSendBtn.addEventListener('click', sendChatMessage);
+  chatInput.addEventListener('keydown', e => { if (e.key === 'Enter') sendChatMessage(); });
+  recordVoiceBtn.addEventListener('click', () => mediaRecorder ? stopVoiceRecording() : startVoiceRecording());
+  chatToggle.addEventListener('click', openChat);
+  chatCloseBtn.addEventListener('click', closeChat);
+  chatModal.addEventListener('click', e => { if (e.target === chatModal) closeChat(); });
+
+  onAuthStateChanged(auth, user => {
+    if (user) {
+      handleSignedInUser(user);
+    } else {
+      appScreen.classList.add('hidden');
+      loginScreen.classList.remove('hidden');
+      welcomeBanner.innerHTML = '';
+      welcomeBanner.classList.remove('fade-out');
+    }
+  });
+
+  document.addEventListener('contextmenu', e => e.preventDefault());
+  document.addEventListener('copy', e => e.preventDefault());
+</script>
+</body>
+</html>
