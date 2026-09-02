@@ -101,7 +101,8 @@
     margin-bottom: 22px;
     box-shadow: 0 1px 4px rgba(0,0,0,0.06);
   }
-  .card h2 { margin-top: 0; font-size: 16px; color: var(--primary); }
+  .card h2 { margin-top: 0; font-size: 16px; color: var(--primary); display: flex; align-items: center; gap: 8px; }
+  .card h2 .badge { font-size: 13px; font-weight: 800; }
   .form-row {
     display: flex;
     gap: 10px;
@@ -322,7 +323,10 @@
       </div>
 
       <div class="card">
-        <h2>المنتجات والأسعار</h2>
+        <h2>المنتجات والأسعار <span id="productsCount" class="badge role-main">0</span></h2>
+        <div class="form-row">
+          <input type="text" id="productSearch" placeholder="ابحث بالاسم أو الموديل...">
+        </div>
         <div id="productsTable"><p class="muted">جاري التحميل...</p></div>
       </div>
     </div>
@@ -480,55 +484,79 @@
   }
 
   // ---------- المنتجات ----------
+  let allAdminProducts = [];
+  const productSearchInput = document.getElementById('productSearch');
+  const productsCountEl = document.getElementById('productsCount');
+
+  function renderProductsTable() {
+    const wrap = document.getElementById('productsTable');
+    const q = productSearchInput.value.trim().toLowerCase();
+    const filtered = q
+      ? allAdminProducts.filter(({ p }) =>
+          (p.name || '').toLowerCase().includes(q) ||
+          (p.model || '').toLowerCase().includes(q))
+      : allAdminProducts;
+
+    productsCountEl.textContent = allAdminProducts.length;
+
+    if (!allAdminProducts.length) {
+      wrap.innerHTML = '<p class="muted">لا توجد منتجات بعد.</p>';
+      return;
+    }
+    if (!filtered.length) {
+      wrap.innerHTML = '<p class="muted">لا توجد نتائج مطابقة للبحث.</p>';
+      return;
+    }
+
+    let html = '<table><thead><tr><th>الاسم</th><th>الموديل</th><th>السعر</th><th>الألوان</th><th></th></tr></thead><tbody>';
+    filtered.forEach(({ id, p }) => {
+      const colorsStr = Array.isArray(p.colors) ? p.colors.join(', ') : '';
+      html += `<tr data-id="${id}" data-old-price="${escapeAttr(p.price ?? '')}" data-old-name="${escapeAttr(p.name ?? '')}">
+        <td><input class="f-name" value="${escapeAttr(p.name || '')}"></td>
+        <td><input class="f-model" value="${escapeAttr(p.model || '')}"></td>
+        <td><input class="f-price" type="number" step="0.01" value="${escapeAttr(p.price ?? '')}"></td>
+        <td><input class="f-colors" value="${escapeAttr(colorsStr)}"></td>
+        <td class="actions">
+          <button class="save-btn">حفظ</button>
+          <button class="del-btn">حذف</button>
+        </td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+    wrap.innerHTML = html;
+
+    wrap.querySelectorAll('tbody tr').forEach(row => {
+      const id = row.dataset.id;
+      row.querySelector('.save-btn').addEventListener('click', async () => {
+        const name = row.querySelector('.f-name').value.trim();
+        const model = row.querySelector('.f-model').value.trim();
+        const price = parseFloat(row.querySelector('.f-price').value);
+        const colors = row.querySelector('.f-colors').value.split(',').map(c => c.trim()).filter(Boolean);
+        const oldPrice = row.dataset.oldPrice;
+        await updateDoc(doc(db, 'products', id), { name, model, price, colors });
+        if (String(price) !== String(oldPrice)) {
+          await logActivity(`تم تغيير سعر "${name}" من ${oldPrice} إلى ${price} ج.م`);
+        } else {
+          await logActivity(`تم تعديل بيانات منتج "${name}"`);
+        }
+      });
+      row.querySelector('.del-btn').addEventListener('click', async () => {
+        const name = row.dataset.oldName;
+        if (confirm(`متأكد من حذف "${name}"؟`)) {
+          await deleteDoc(doc(db, 'products', id));
+          await logActivity(`تم حذف منتج "${name}"`);
+        }
+      });
+    });
+  }
+
+  productSearchInput.addEventListener('input', renderProductsTable);
+
   function loadProducts() {
     const q = query(collection(db, 'products'), orderBy('name'));
     onSnapshot(q, snap => {
-      const wrap = document.getElementById('productsTable');
-      if (snap.empty) {
-        wrap.innerHTML = '<p class="muted">لا توجد منتجات بعد.</p>';
-        return;
-      }
-      let html = '<table><thead><tr><th>الاسم</th><th>الموديل</th><th>السعر</th><th>الألوان</th><th></th></tr></thead><tbody>';
-      snap.forEach(d => {
-        const p = d.data();
-        const colorsStr = Array.isArray(p.colors) ? p.colors.join(', ') : '';
-        html += `<tr data-id="${d.id}" data-old-price="${escapeAttr(p.price ?? '')}" data-old-name="${escapeAttr(p.name ?? '')}">
-          <td><input class="f-name" value="${escapeAttr(p.name || '')}"></td>
-          <td><input class="f-model" value="${escapeAttr(p.model || '')}"></td>
-          <td><input class="f-price" type="number" step="0.01" value="${escapeAttr(p.price ?? '')}"></td>
-          <td><input class="f-colors" value="${escapeAttr(colorsStr)}"></td>
-          <td class="actions">
-            <button class="save-btn">حفظ</button>
-            <button class="del-btn">حذف</button>
-          </td>
-        </tr>`;
-      });
-      html += '</tbody></table>';
-      wrap.innerHTML = html;
-
-      wrap.querySelectorAll('tbody tr').forEach(row => {
-        const id = row.dataset.id;
-        row.querySelector('.save-btn').addEventListener('click', async () => {
-          const name = row.querySelector('.f-name').value.trim();
-          const model = row.querySelector('.f-model').value.trim();
-          const price = parseFloat(row.querySelector('.f-price').value);
-          const colors = row.querySelector('.f-colors').value.split(',').map(c => c.trim()).filter(Boolean);
-          const oldPrice = row.dataset.oldPrice;
-          await updateDoc(doc(db, 'products', id), { name, model, price, colors });
-          if (String(price) !== String(oldPrice)) {
-            await logActivity(`تم تغيير سعر "${name}" من ${oldPrice} إلى ${price} ج.م`);
-          } else {
-            await logActivity(`تم تعديل بيانات منتج "${name}"`);
-          }
-        });
-        row.querySelector('.del-btn').addEventListener('click', async () => {
-          const name = row.dataset.oldName;
-          if (confirm(`متأكد من حذف "${name}"؟`)) {
-            await deleteDoc(doc(db, 'products', id));
-            await logActivity(`تم حذف منتج "${name}"`);
-          }
-        });
-      });
+      allAdminProducts = snap.docs.map(d => ({ id: d.id, p: d.data() }));
+      renderProductsTable();
     });
   }
 
