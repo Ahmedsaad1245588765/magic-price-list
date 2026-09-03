@@ -278,6 +278,23 @@
   .error-msg { color: var(--danger); }
 
   .hidden { display: none !important; }
+
+  /* ---------- شاشة الحماية: تخفي المحتوى عند عدم النشاط أو بلمسة 3 أصابع ---------- */
+  #privacyShield {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    background: #ffffff;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 10px;
+    cursor: pointer;
+  }
+  #privacyShield.active { display: flex; }
+  #privacyShield .shield-icon { font-size: 34px; color: var(--muted); }
+  #privacyShield .shield-text { font-size: 13px; color: var(--muted); font-weight: 700; }
 </style>
 </head>
 <body>
@@ -314,6 +331,11 @@
       <p class="loading-msg">جاري تحميل الأسعار...</p>
     </div>
   </main>
+</div>
+
+<div id="privacyShield">
+  <div class="shield-icon">🔒</div>
+  <div class="shield-text">اضغط للعودة</div>
 </div>
 
 <div id="chatModal" class="hidden" role="dialog" aria-modal="true" aria-label="رسائل الفريق">
@@ -370,6 +392,7 @@
   let activeProductName = 'الكل';
   let currentUserEmail = '';
   let currentUserName = '';
+  let currentUserRole = '';
   let chatMessagesCache = [];
   let chatOpen = false;
 
@@ -498,11 +521,22 @@
     }
 
     const empData = empSnap.data();
+    currentUserRole = empData.role || 'sub';
     loginScreen.classList.add('hidden');
     appScreen.classList.remove('hidden');
 
     const isMain = empData.role === 'main';
     adminLinkBtn.classList.toggle('hidden', !isMain);
+
+    // تسجيل حدث الدخول في سجل الدخول (لا يوقف الدخول لو فشل)
+    try {
+      await addDoc(collection(db, 'access_log'), {
+        email, name: empData.name || user.displayName || '', role: currentUserRole,
+        action: 'login', timestamp: Date.now()
+      });
+    } catch (e) { /* تجاهل فشل التسجيل */ }
+
+    resetInactivityTimer();
 
     const roleLabel = isMain ? 'Main user' : 'Sub user';
     welcomeBanner.classList.remove('fade-out');
@@ -527,9 +561,19 @@
   }
 
   async function doSignOut() {
+    if (currentUserEmail) {
+      try {
+        await addDoc(collection(db, 'access_log'), {
+          email: currentUserEmail, name: currentUserName, role: currentUserRole,
+          action: 'logout', timestamp: Date.now()
+        });
+      } catch (e) { /* تجاهل فشل التسجيل */ }
+    }
     localStorage.removeItem(SESSION_KEY);
     if (sessionUnsub) sessionUnsub();
     if (productsUnsub) productsUnsub();
+    clearTimeout(inactivityTimer);
+    privacyShield.classList.remove('active');
     closeChat();
     await signOut(auth);
   }
@@ -692,8 +736,57 @@
       loginScreen.classList.remove('hidden');
       welcomeBanner.innerHTML = '';
       welcomeBanner.classList.remove('fade-out');
+      clearTimeout(inactivityTimer);
+      privacyShield.classList.remove('active');
     }
   });
+
+  // ---------- شاشة الحماية: إخفاء تلقائي بعد 3 ثواني من عدم الحركة، وإخفاء فوري بلمسة 3 أصابع ----------
+  const privacyShield = document.getElementById('privacyShield');
+  const INACTIVITY_MS = 3000;
+  let inactivityTimer = null;
+
+  function isLoggedIn() {
+    return !appScreen.classList.contains('hidden');
+  }
+
+  function showShield() {
+    if (!isLoggedIn()) return;
+    privacyShield.classList.add('active');
+  }
+
+  function resetInactivityTimer() {
+    clearTimeout(inactivityTimer);
+    if (!isLoggedIn()) return;
+    inactivityTimer = setTimeout(showShield, INACTIVITY_MS);
+  }
+
+  function hideShieldAndResetTimer() {
+    privacyShield.classList.remove('active');
+    resetInactivityTimer();
+  }
+
+  // أي حركة عادية (فأرة، كيبورد، سكرول) تعتبر نشاط وتصفّر العداد
+  ['mousemove', 'mousedown', 'keydown', 'scroll', 'wheel'].forEach(evt => {
+    document.addEventListener(evt, () => {
+      if (!privacyShield.classList.contains('active')) resetInactivityTimer();
+    }, { passive: true });
+  });
+
+  // اللمس على الشاشة: 3 أصابع أو أكتر = إخفاء فوري، لمسة عادية = إعادة تصفير العداد أو الرجوع لو الشاشة مخفية
+  document.addEventListener('touchstart', (e) => {
+    if (e.touches.length >= 3) {
+      showShield();
+      return;
+    }
+    if (privacyShield.classList.contains('active')) {
+      hideShieldAndResetTimer();
+    } else {
+      resetInactivityTimer();
+    }
+  }, { passive: true });
+
+  privacyShield.addEventListener('click', hideShieldAndResetTimer);
 
   document.addEventListener('contextmenu', e => e.preventDefault());
   document.addEventListener('copy', e => e.preventDefault());
