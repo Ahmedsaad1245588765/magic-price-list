@@ -148,6 +148,9 @@
   .badge.inactive { background: #fdedec; color: var(--danger); cursor: pointer; }
   .badge.role-main { background: #eaf2f8; color: var(--primary-light); }
   .badge.role-sub { background: #f4f4f4; color: var(--muted); }
+  .badge.pending { background: #fef5e7; color: var(--accent); }
+  .progress-bar { background: #eef1f4; border-radius: 8px; height: 8px; overflow: hidden; margin-top: 6px; }
+  .progress-bar-fill { background: var(--primary-light); height: 100%; border-radius: 8px; transition: width 0.3s; }
   .hidden { display: none !important; }
   .muted { color: var(--muted); font-size: 13px; }
   .you-tag { font-size: 11px; color: var(--accent); }
@@ -308,6 +311,9 @@
     <button class="tab-btn active" data-tab="products">المنتجات</button>
     <button class="tab-btn" data-tab="team">فريق العمل</button>
     <button class="tab-btn" data-tab="log">سجل النشاط</button>
+    <button class="tab-btn" data-tab="activation">التنشيط</button>
+    <button class="tab-btn" data-tab="target">التارجت</button>
+    <button class="tab-btn" data-tab="level">الأداء</button>
     <button class="tab-btn" data-tab="access">سجل الدخول</button>
   </div>
 
@@ -372,6 +378,45 @@
       </div>
     </div>
 
+    <div class="tab-content" id="tab-activation">
+      <div class="card">
+        <h2>🕓 عمليات بيع قيد المراجعة <span id="pendingSalesCount" class="badge pending">0</span></h2>
+        <p class="muted">لما أي عضو (Main أو Sub) يسجل إنه باع منتج من صفحة "منتجاتي"، هتظهر هنا لحد ما تدوس "تنشيط".</p>
+        <div id="pendingSalesTable"><p class="muted">جاري التحميل...</p></div>
+      </div>
+
+      <div class="card">
+        <h2>✅ عمليات بيع مُفعّلة <span id="activatedSalesCount" class="badge active">0</span></h2>
+        <p class="muted">بعد التفعيل، العملية بتتحسب في التارجت وصفحة الأداء. الحذف متاح للأدمن الرئيسي بس.</p>
+        <div id="activatedSalesTable"><p class="muted">جاري التحميل...</p></div>
+      </div>
+    </div>
+
+    <div class="tab-content" id="tab-target">
+      <div class="card">
+        <h2>🎯 تارجت المبيعات الشهري</h2>
+        <p class="muted">حدد تارجت شهري لكل عضو Sub. التقدم بيتحسب من عمليات البيع المفعّلة في الشهر الحالي، وبيتصفّر تلقائيًا أول كل شهر.</p>
+        <div id="targetsTable"><p class="muted">جاري التحميل...</p></div>
+      </div>
+    </div>
+
+    <div class="tab-content" id="tab-level">
+      <div class="card">
+        <h2>📊 أداء المبيعات</h2>
+        <div class="form-row">
+          <select id="levelEmpSelect"><option value="">اختر عضو الفريق...</option></select>
+          <select id="levelPeriodType">
+            <option value="day">يوم معيّن</option>
+            <option value="month">شهر معيّن</option>
+          </select>
+          <input type="date" id="levelDateInput">
+          <input type="month" id="levelMonthInput" class="hidden">
+          <button class="primary" id="levelSearchBtn">عرض</button>
+        </div>
+        <div id="levelResult"></div>
+      </div>
+    </div>
+
     <div class="tab-content" id="tab-access">
       <div class="card">
         <h2>🔑 سجل الدخول والخروج <span id="accessLogCount" class="badge role-main">0</span></h2>
@@ -390,7 +435,7 @@
   } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
   import {
     getFirestore, collection, doc, setDoc, deleteDoc, updateDoc, addDoc,
-    onSnapshot, query, orderBy, where, limit, getDoc, serverTimestamp
+    onSnapshot, query, orderBy, where, limit, getDoc, getDocs, serverTimestamp
   } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
   const firebaseConfig = {
@@ -467,12 +512,17 @@
     loadEmployees();
     startChat();
     loadAccessLog();
+    loadSales();
   });
 
   function escapeAttr(str) {
     const d = document.createElement('div');
     d.textContent = String(str ?? '');
     return d.innerHTML;
+  }
+
+  function productLabel(name, model) {
+    return model ? `${name} - ${model}` : name;
   }
 
   async function logActivity(message) {
@@ -526,7 +576,7 @@
     let html = '<table><thead><tr><th>الاسم</th><th>الموديل</th><th>السعر</th><th>الألوان</th><th></th></tr></thead><tbody>';
     filtered.forEach(({ id, p }) => {
       const colorsStr = Array.isArray(p.colors) ? p.colors.join(', ') : '';
-      html += `<tr data-id="${id}" data-old-price="${escapeAttr(p.price ?? '')}" data-old-name="${escapeAttr(p.name ?? '')}">
+      html += `<tr data-id="${id}" data-old-price="${escapeAttr(p.price ?? '')}" data-old-name="${escapeAttr(p.name ?? '')}" data-old-model="${escapeAttr(p.model ?? '')}">
         <td><input class="f-name" value="${escapeAttr(p.name || '')}"></td>
         <td><input class="f-model" value="${escapeAttr(p.model || '')}"></td>
         <td><input class="f-price" type="number" step="0.01" value="${escapeAttr(p.price ?? '')}"></td>
@@ -549,17 +599,20 @@
         const colors = row.querySelector('.f-colors').value.split(',').map(c => c.trim()).filter(Boolean);
         const oldPrice = row.dataset.oldPrice;
         await updateDoc(doc(db, 'products', id), { name, model, price, colors });
+        const label = productLabel(name, model);
         if (String(price) !== String(oldPrice)) {
-          await logActivity(`تم تغيير سعر "${name}" من ${oldPrice} إلى ${price} ج.م`);
+          await logActivity(`تم تغيير سعر "${label}" من ${oldPrice} إلى ${price} ج.م`);
         } else {
-          await logActivity(`تم تعديل بيانات منتج "${name}"`);
+          await logActivity(`تم تعديل بيانات منتج "${label}"`);
         }
       });
       row.querySelector('.del-btn').addEventListener('click', async () => {
         const name = row.dataset.oldName;
-        if (confirm(`متأكد من حذف "${name}"؟`)) {
+        const model = row.dataset.oldModel;
+        const label = productLabel(name, model);
+        if (confirm(`متأكد من حذف "${label}"؟`)) {
           await deleteDoc(doc(db, 'products', id));
-          await logActivity(`تم حذف منتج "${name}"`);
+          await logActivity(`تم حذف منتج "${label}"`);
         }
       });
     });
@@ -588,7 +641,7 @@
     }
     const id = crypto.randomUUID();
     await setDoc(doc(db, 'products', id), { name, model, price, colors });
-    await logActivity(`تمت إضافة منتج جديد: "${name}" بسعر ${price} ج.م`);
+    await logActivity(`تمت إضافة منتج جديد: "${productLabel(name, model)}" بسعر ${price} ج.م`);
     document.getElementById('newName').value = '';
     document.getElementById('newModel').value = '';
     document.getElementById('newPrice').value = '';
@@ -599,12 +652,16 @@
   });
 
   // ---------- فريق العمل ----------
+  let allEmployees = [];
   function loadEmployees() {
     const q = query(collection(db, 'employees'), orderBy('email'));
     onSnapshot(q, snap => {
+      allEmployees = snap.docs.map(d => ({ id: d.id, e: d.data() }));
       const wrap = document.getElementById('employeesTable');
       if (snap.empty) {
         wrap.innerHTML = '<p class="muted">لا يوجد أعضاء مضافون بعد.</p>';
+        renderTargetsTab();
+        renderLevelEmpOptions();
         return;
       }
       let html = '<table><thead><tr><th>الاسم</th><th>الإيميل</th><th>الصلاحية</th><th>الحالة</th><th></th></tr></thead><tbody>';
@@ -663,6 +720,8 @@
           });
         }
       });
+      renderTargetsTab();
+      renderLevelEmpOptions();
     });
   }
 
@@ -772,6 +831,211 @@
       wrap.innerHTML = html;
     });
   }
+  // ---------- المبيعات: التنشيط + التارجت + الأداء ----------
+  let allSales = [];
+  let allTargets = {}; // subEmail -> target number
+
+  function loadSales() {
+    const q = query(collection(db, 'sales'), orderBy('timestamp', 'desc'), limit(1000));
+    onSnapshot(q, snap => {
+      allSales = snap.docs.map(d => ({ id: d.id, s: d.data() }));
+      renderActivationTab();
+      renderTargetsTab();
+    });
+
+    onSnapshot(collection(db, 'targets'), snap => {
+      allTargets = {};
+      snap.forEach(d => { allTargets[d.id] = d.data().target || 0; });
+      renderTargetsTab();
+    });
+  }
+
+  function isSameMonth(ts, ref) {
+    const d1 = new Date(ts);
+    return d1.getFullYear() === ref.getFullYear() && d1.getMonth() === ref.getMonth();
+  }
+
+  function renderActivationTab() {
+    const pendingWrap = document.getElementById('pendingSalesTable');
+    const activatedWrap = document.getElementById('activatedSalesTable');
+    if (!pendingWrap || !activatedWrap) return;
+    const pending = allSales.filter(({ s }) => s.status === 'pending');
+    const activated = allSales.filter(({ s }) => s.status === 'activated');
+    document.getElementById('pendingSalesCount').textContent = pending.length;
+    document.getElementById('activatedSalesCount').textContent = activated.length;
+
+    if (!pending.length) {
+      pendingWrap.innerHTML = '<p class="muted">لا توجد عمليات بيع قيد المراجعة.</p>';
+    } else {
+      let html = '<table><thead><tr><th>العضو</th><th>المنتج</th><th>التاريخ</th><th></th></tr></thead><tbody>';
+      pending.forEach(({ id, s }) => {
+        const dt = s.timestamp ? new Date(s.timestamp).toLocaleString('ar-EG') : '';
+        html += `<tr data-id="${id}">
+          <td>${escapeAttr(s.subName || s.subEmail || '')}</td>
+          <td>${escapeAttr(productLabel(s.productName || '', s.productModel || ''))}</td>
+          <td>${dt}</td>
+          <td class="actions"><button class="save-btn activate-btn">تنشيط</button></td>
+        </tr>`;
+      });
+      html += '</tbody></table>';
+      pendingWrap.innerHTML = html;
+      pendingWrap.querySelectorAll('.activate-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const row = btn.closest('tr');
+          const id = row.dataset.id;
+          const entry = allSales.find(x => x.id === id);
+          await updateDoc(doc(db, 'sales', id), {
+            status: 'activated', activatedAt: Date.now(), activatedBy: currentUserEmail
+          });
+          if (entry) {
+            await logActivity(`تم تفعيل عملية بيع "${productLabel(entry.s.productName, entry.s.productModel)}" لـ ${entry.s.subName || entry.s.subEmail}`);
+          }
+        });
+      });
+    }
+
+    if (!activated.length) {
+      activatedWrap.innerHTML = '<p class="muted">لا توجد عمليات بيع مفعّلة بعد.</p>';
+    } else {
+      const canDelete = currentUserEmail === SUPER_ADMIN;
+      let html = '<table><thead><tr><th>العضو</th><th>المنتج</th><th>تاريخ التفعيل</th>' + (canDelete ? '<th></th>' : '') + '</tr></thead><tbody>';
+      activated.forEach(({ id, s }) => {
+        const dt = s.activatedAt ? new Date(s.activatedAt).toLocaleString('ar-EG') : '';
+        html += `<tr data-id="${id}">
+          <td>${escapeAttr(s.subName || s.subEmail || '')}</td>
+          <td>${escapeAttr(productLabel(s.productName || '', s.productModel || ''))}</td>
+          <td>${dt}</td>
+          ${canDelete ? `<td class="actions"><button class="del-btn">حذف</button></td>` : ''}
+        </tr>`;
+      });
+      html += '</tbody></table>';
+      activatedWrap.innerHTML = html;
+      if (canDelete) {
+        activatedWrap.querySelectorAll('.del-btn').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            const row = btn.closest('tr');
+            const id = row.dataset.id;
+            if (confirm('متأكد من حذف عملية البيع دي نهائيًا؟')) {
+              await deleteDoc(doc(db, 'sales', id));
+            }
+          });
+        });
+      }
+    }
+  }
+
+  function renderTargetsTab() {
+    const wrap = document.getElementById('targetsTable');
+    if (!wrap) return;
+    const subs = allEmployees.filter(({ e }) => (e.role || 'sub') === 'sub');
+    if (!subs.length) {
+      wrap.innerHTML = '<p class="muted">لا يوجد أعضاء Sub لحد دلوقتي.</p>';
+      return;
+    }
+    const now = new Date();
+    let html = '<table><thead><tr><th>العضو</th><th>التارجت الشهري</th><th>مبيعات الشهر الحالي</th><th></th></tr></thead><tbody>';
+    subs.forEach(({ id, e }) => {
+      const target = allTargets[id] || 0;
+      const soldThisMonth = allSales.filter(({ s }) =>
+        s.status === 'activated' && s.subEmail === id && s.activatedAt && isSameMonth(s.activatedAt, now)
+      ).length;
+      const pct = target > 0 ? Math.min(100, Math.round((soldThisMonth / target) * 100)) : 0;
+      html += `<tr data-id="${id}">
+        <td>${escapeAttr(e.name || id)}</td>
+        <td><input class="f-target" type="number" min="0" value="${target}"></td>
+        <td>
+          <span class="badge ${target > 0 && soldThisMonth >= target ? 'active' : 'role-sub'}">${soldThisMonth} / ${target || '—'}</span>
+          <div class="progress-bar"><div class="progress-bar-fill" style="width:${pct}%"></div></div>
+        </td>
+        <td class="actions"><button class="save-btn save-target-btn">حفظ</button></td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+    wrap.innerHTML = html;
+    wrap.querySelectorAll('.save-target-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const row = btn.closest('tr');
+        const id = row.dataset.id;
+        const target = parseInt(row.querySelector('.f-target').value) || 0;
+        await setDoc(doc(db, 'targets', id), { subEmail: id, target, updatedAt: Date.now() }, { merge: true });
+        await logActivity(`تم تحديث التارجت الشهري لـ ${id} إلى ${target}`);
+      });
+    });
+  }
+
+  // ---------- الأداء (الليفل) ----------
+  function renderLevelEmpOptions() {
+    const select = document.getElementById('levelEmpSelect');
+    if (!select) return;
+    const current = select.value;
+    select.innerHTML = '<option value="">اختر عضو الفريق...</option>' +
+      allEmployees.map(({ id, e }) => `<option value="${escapeAttr(id)}">${escapeAttr(e.name || id)}</option>`).join('');
+    if (current) select.value = current;
+  }
+
+  const levelPeriodType = document.getElementById('levelPeriodType');
+  const levelDateInput = document.getElementById('levelDateInput');
+  const levelMonthInput = document.getElementById('levelMonthInput');
+  levelPeriodType.addEventListener('change', () => {
+    const isDay = levelPeriodType.value === 'day';
+    levelDateInput.classList.toggle('hidden', !isDay);
+    levelMonthInput.classList.toggle('hidden', isDay);
+  });
+
+  document.getElementById('levelSearchBtn').addEventListener('click', async () => {
+    const empId = document.getElementById('levelEmpSelect').value;
+    const resultWrap = document.getElementById('levelResult');
+    if (!empId) {
+      resultWrap.innerHTML = '<p class="muted">اختر عضو الفريق الأول.</p>';
+      return;
+    }
+    const isDay = levelPeriodType.value === 'day';
+    if (isDay && !levelDateInput.value) { resultWrap.innerHTML = '<p class="muted">اختر يوم الأول.</p>'; return; }
+    if (!isDay && !levelMonthInput.value) { resultWrap.innerHTML = '<p class="muted">اختر شهر الأول.</p>'; return; }
+
+    resultWrap.innerHTML = '<p class="muted">جاري البحث...</p>';
+
+    // استعلام مباشر لكل مبيعات الشخص ده من قاعدة البيانات (من غير أي حد أقصى)
+    // عشان الشهور والأيام القديمة تفضل تظهر بدقة حتى لو عدد المبيعات الكلي كبر جدًا.
+    let subSalesSnap;
+    try {
+      subSalesSnap = await getDocs(query(collection(db, 'sales'), where('subEmail', '==', empId)));
+    } catch (e) {
+      resultWrap.innerHTML = '<p class="error-msg">حدث خطأ أثناء البحث، حاول مرة أخرى.</p>';
+      return;
+    }
+    const subSales = subSalesSnap.docs.map(d => d.data());
+
+    let matches;
+    if (isDay) {
+      const dateVal = levelDateInput.value;
+      matches = subSales.filter(s => {
+        if (s.status !== 'activated' || !s.activatedAt) return false;
+        const d = new Date(s.activatedAt);
+        const dayStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        return dayStr === dateVal;
+      });
+    } else {
+      const monthVal = levelMonthInput.value;
+      matches = subSales.filter(s => {
+        if (s.status !== 'activated' || !s.activatedAt) return false;
+        const d = new Date(s.activatedAt);
+        const monthStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+        return monthStr === monthVal;
+      });
+    }
+    if (!matches.length) {
+      resultWrap.innerHTML = '<p class="muted">مفيش عمليات بيع مفعّلة في الفترة دي.</p>';
+      return;
+    }
+    let html = `<p class="muted">إجمالي عمليات البيع المفعّلة: <strong>${matches.length}</strong></p>`;
+    html += '<table><thead><tr><th>المنتج</th><th>تاريخ التفعيل</th></tr></thead><tbody>';
+    matches.sort((a, b) => (b.activatedAt || 0) - (a.activatedAt || 0)).forEach(s => {
+      html += `<tr><td>${escapeAttr(productLabel(s.productName || '', s.productModel || ''))}</td><td>${new Date(s.activatedAt).toLocaleString('ar-EG')}</td></tr>`;
+    });
+    html += '</tbody></table>';
+    resultWrap.innerHTML = html;
+  });
 
 </script>
 </body>
