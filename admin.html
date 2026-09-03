@@ -244,20 +244,20 @@
     .form-row { display: grid; grid-template-columns: 1fr; gap: 10px; }
     .form-row input, .form-row select, button.primary { width: 100%; min-width: 0; }
 
-    #productsTable table, #employeesTable table,
-    #productsTable thead, #employeesTable thead,
-    #productsTable tbody, #employeesTable tbody,
-    #productsTable tr, #employeesTable tr,
-    #productsTable td, #employeesTable td { display: block; width: 100%; }
-    #productsTable thead, #employeesTable thead { display: none; }
-    #productsTable tr, #employeesTable tr {
+    #productsTable table, #employeesTable table, #accessLogTable table,
+    #productsTable thead, #employeesTable thead, #accessLogTable thead,
+    #productsTable tbody, #employeesTable tbody, #accessLogTable tbody,
+    #productsTable tr, #employeesTable tr, #accessLogTable tr,
+    #productsTable td, #employeesTable td, #accessLogTable td { display: block; width: 100%; }
+    #productsTable thead, #employeesTable thead, #accessLogTable thead { display: none; }
+    #productsTable tr, #employeesTable tr, #accessLogTable tr {
       margin: 0 0 14px;
       padding: 8px 12px;
       border: 1px solid var(--border);
       border-radius: 10px;
       background: #fafcfd;
     }
-    #productsTable td, #employeesTable td {
+    #productsTable td, #employeesTable td, #accessLogTable td {
       display: grid;
       grid-template-columns: 88px minmax(0, 1fr);
       align-items: center;
@@ -266,8 +266,8 @@
       text-align: right;
       border-bottom: 1px solid var(--border);
     }
-    #productsTable td:last-child, #employeesTable td:last-child { border-bottom: 0; }
-    #productsTable td::before, #employeesTable td::before { color: var(--muted); font-size: 12px; font-weight: 700; }
+    #productsTable td:last-child, #employeesTable td:last-child, #accessLogTable td:last-child { border-bottom: 0; }
+    #productsTable td::before, #employeesTable td::before, #accessLogTable td::before { color: var(--muted); font-size: 12px; font-weight: 700; }
     #productsTable td:nth-child(1)::before { content: 'الاسم'; }
     #productsTable td:nth-child(2)::before { content: 'الموديل'; }
     #productsTable td:nth-child(3)::before { content: 'السعر'; }
@@ -276,6 +276,11 @@
     #employeesTable td:nth-child(2)::before { content: 'الإيميل'; }
     #employeesTable td:nth-child(3)::before { content: 'الصلاحية'; }
     #employeesTable td:nth-child(4)::before { content: 'الحالة'; }
+    #accessLogTable td:nth-child(1)::before { content: 'الاسم'; }
+    #accessLogTable td:nth-child(2)::before { content: 'الإيميل'; }
+    #accessLogTable td:nth-child(3)::before { content: 'الصلاحية'; }
+    #accessLogTable td:nth-child(4)::before { content: 'الحدث'; }
+    #accessLogTable td:nth-child(5)::before { content: 'الوقت'; }
     .actions { display: flex !important; grid-template-columns: none !important; flex-wrap: wrap; gap: 6px; }
     .actions::before { display: none; }
     .actions button { margin-left: 0; flex: 1; min-width: 90px; }
@@ -303,6 +308,7 @@
     <button class="tab-btn active" data-tab="products">المنتجات</button>
     <button class="tab-btn" data-tab="team">فريق العمل</button>
     <button class="tab-btn" data-tab="log">سجل النشاط</button>
+    <button class="tab-btn" data-tab="access">سجل الدخول</button>
   </div>
 
   <main>
@@ -363,6 +369,14 @@
             <button id="chatSendBtn">➤</button>
           </div>
         </div>
+      </div>
+    </div>
+
+    <div class="tab-content" id="tab-access">
+      <div class="card">
+        <h2>🔑 سجل الدخول والخروج <span id="accessLogCount" class="badge role-main">0</span></h2>
+        <p class="muted">سجل تلقائي بكل مرة أي عضو من الفريق (Main أو Sub) يدخل أو يخرج من صفحة الأسعار.</p>
+        <div id="accessLogTable"><p class="muted">جاري التحميل...</p></div>
       </div>
     </div>
 
@@ -452,6 +466,7 @@
     loadProducts();
     loadEmployees();
     startChat();
+    loadAccessLog();
   });
 
   function escapeAttr(str) {
@@ -729,6 +744,34 @@
   }
   chatSendBtn.addEventListener('click', sendChatMessage);
   chatInput.addEventListener('keydown', e => { if (e.key === 'Enter') sendChatMessage(); });
+
+  // ---------- سجل الدخول والخروج ----------
+  function loadAccessLog() {
+    const q = query(collection(db, 'access_log'), orderBy('timestamp', 'desc'), limit(300));
+    onSnapshot(q, snap => {
+      const wrap = document.getElementById('accessLogTable');
+      document.getElementById('accessLogCount').textContent = snap.size;
+      if (snap.empty) {
+        wrap.innerHTML = '<p class="muted">لا يوجد سجل دخول بعد.</p>';
+        return;
+      }
+      let html = '<table><thead><tr><th>الاسم</th><th>الإيميل</th><th>الصلاحية</th><th>الحدث</th><th>الوقت</th></tr></thead><tbody>';
+      snap.forEach(d => {
+        const e = d.data();
+        const dt = e.timestamp ? new Date(e.timestamp).toLocaleString('ar-EG') : '';
+        const isLogin = e.action !== 'logout';
+        html += `<tr>
+          <td>${escapeAttr(e.name || '—')}</td>
+          <td>${escapeAttr(e.email || '')}</td>
+          <td><span class="badge ${e.role === 'main' ? 'role-main' : 'role-sub'}">${e.role === 'main' ? 'Main user' : 'Sub user'}</span></td>
+          <td><span class="badge ${isLogin ? 'active' : 'inactive'}">${isLogin ? 'دخول' : 'خروج'}</span></td>
+          <td>${dt}</td>
+        </tr>`;
+      });
+      html += '</tbody></table>';
+      wrap.innerHTML = html;
+    });
+  }
 
 </script>
 </body>
