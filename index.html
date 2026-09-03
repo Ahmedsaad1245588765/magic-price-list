@@ -210,6 +210,54 @@
   #mySalesTable table { width: 100%; border-collapse: collapse; }
   #mySalesTable th, #mySalesTable td { padding: 10px 8px; text-align: right; border-bottom: 1px solid var(--border); font-size: 13.5px; }
   #mySalesTable th { color: var(--muted); font-weight: 700; }
+
+  #mySaleSuggestions {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-top: 8px;
+    max-height: 240px;
+    overflow-y: auto;
+    box-shadow: var(--shadow);
+  }
+  #mySaleSuggestions .suggestion-item {
+    padding: 11px 14px;
+    font-size: 13.5px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  #mySaleSuggestions .suggestion-item:last-child { border-bottom: 0; }
+  #mySaleSuggestions .suggestion-item:hover { background: #f8fafc; }
+  #mySaleSuggestions .sug-name { font-weight: 700; }
+  #mySaleSuggestions .sug-price { color: var(--accent); font-weight: 800; white-space: nowrap; font-size: 13px; }
+  #mySaleSuggestions .sug-empty { padding: 14px; text-align: center; color: var(--muted); font-size: 13px; }
+
+  #mySaleSelectedChip {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    background: #eef2ff;
+    color: var(--primary-2);
+    border-radius: 12px;
+    padding: 10px 14px;
+    font-size: 13.5px;
+    font-weight: 700;
+    margin-bottom: 10px;
+  }
+  #mySaleSelectedChip button {
+    border: none;
+    background: transparent;
+    color: var(--danger);
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    flex: 0 0 auto;
+  }
   .search-bar {
     display: flex;
     gap: 10px;
@@ -379,14 +427,17 @@
 
     <div class="tab-page" id="page-mysales">
       <div style="padding: 4px 20px 20px;">
-        <div class="p-card" style="margin-bottom:16px;">
+        <div class="p-card" style="margin-bottom:16px; position:relative;">
           <div class="p-name" style="margin-bottom:14px;">➕ تسجيل عملية بيع</div>
+
+          <div id="mySaleSelectedChip" class="hidden"></div>
+
           <div class="search-bar" style="margin-bottom:0;">
-            <select id="mySaleProductSelect" style="flex:1; padding:13px 16px; border:1px solid var(--border); border-radius:14px; font-family:inherit; font-size:14px; background:#fff;">
-              <option value="">اختر المنتج اللي بعته...</option>
-            </select>
-            <button class="page-tab-btn active" id="mySaleSubmitBtn" style="padding:13px 22px;">تسجيل</button>
+            <input type="text" id="mySaleSearchInput" placeholder="دور بالاسم أو الموديل أو السعر...">
           </div>
+          <div id="mySaleSuggestions" class="hidden"></div>
+
+          <button class="page-tab-btn active" id="mySaleSubmitBtn" style="padding:13px 22px; margin-top:12px;">تسجيل</button>
           <p id="mySaleMsg" class="muted" style="margin-top:10px; margin-bottom:0;"></p>
         </div>
 
@@ -553,7 +604,6 @@
     productsUnsub = onSnapshot(q, snap => {
       allProducts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       renderProductBar();
-      renderMySaleProductOptions();
       applyFilters();
     }, err => {
       productsGrid.innerHTML = '<p class="error-msg">حدث خطأ أثناء تحميل الأسعار.</p>';
@@ -853,37 +903,91 @@
     });
   });
 
-  // ---------- منتجاتي: تسجيل عمليات البيع ----------
-  function renderMySaleProductOptions() {
-    const select = document.getElementById('mySaleProductSelect');
-    if (!select) return;
-    const current = select.value;
-    select.innerHTML = '<option value="">اختر المنتج اللي بعته...</option>' +
-      allProducts.map(p => `<option value="${escapeHtml(p.id)}">${escapeHtml(productLabel(p.name || '', p.model || ''))}</option>`).join('');
-    if (current) select.value = current;
+  // ---------- منتجاتي: تسجيل عمليات البيع (بحث بالاسم أو الموديل أو السعر) ----------
+  let selectedSaleProduct = null;
+  const mySaleSearchInput = document.getElementById('mySaleSearchInput');
+  const mySaleSuggestions = document.getElementById('mySaleSuggestions');
+  const mySaleSelectedChip = document.getElementById('mySaleSelectedChip');
+
+  function renderSaleSuggestions(list) {
+    if (!list.length) {
+      mySaleSuggestions.innerHTML = '<div class="sug-empty">مفيش منتجات مطابقة.</div>';
+    } else {
+      mySaleSuggestions.innerHTML = list.slice(0, 10).map(p => `
+        <div class="suggestion-item" data-id="${escapeHtml(p.id)}">
+          <span class="sug-name">${escapeHtml(productLabel(p.name || '', p.model || ''))}</span>
+          <span class="sug-price">${formatPrice(p.price)} ج.م</span>
+        </div>`).join('');
+      mySaleSuggestions.querySelectorAll('.suggestion-item').forEach(item => {
+        item.addEventListener('click', () => {
+          const product = allProducts.find(p => p.id === item.dataset.id);
+          if (product) selectSaleProduct(product);
+        });
+      });
+    }
+    mySaleSuggestions.classList.remove('hidden');
   }
 
+  function selectSaleProduct(product) {
+    selectedSaleProduct = product;
+    mySaleSearchInput.value = '';
+    mySaleSuggestions.classList.add('hidden');
+    mySaleSelectedChip.innerHTML = `
+      <span>${escapeHtml(productLabel(product.name || '', product.model || ''))} — ${formatPrice(product.price)} ج.م</span>
+      <button type="button" id="mySaleClearChipBtn" aria-label="إلغاء الاختيار">✕</button>`;
+    mySaleSelectedChip.classList.remove('hidden');
+    document.getElementById('mySaleClearChipBtn').addEventListener('click', () => {
+      selectedSaleProduct = null;
+      mySaleSelectedChip.classList.add('hidden');
+      mySaleSelectedChip.innerHTML = '';
+    });
+  }
+
+  mySaleSearchInput.addEventListener('input', () => {
+    const q = mySaleSearchInput.value.trim().toLowerCase();
+    if (!q) {
+      mySaleSuggestions.classList.add('hidden');
+      return;
+    }
+    const matches = allProducts.filter(p =>
+      (p.name || '').toLowerCase().includes(q) ||
+      (p.model || '').toLowerCase().includes(q) ||
+      String(p.price ?? '').toLowerCase().includes(q)
+    );
+    renderSaleSuggestions(matches);
+  });
+
+  mySaleSearchInput.addEventListener('focus', () => {
+    if (mySaleSearchInput.value.trim()) mySaleSuggestions.classList.remove('hidden');
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!mySaleSuggestions.contains(e.target) && e.target !== mySaleSearchInput) {
+      mySaleSuggestions.classList.add('hidden');
+    }
+  });
+
   document.getElementById('mySaleSubmitBtn').addEventListener('click', async () => {
-    const select = document.getElementById('mySaleProductSelect');
     const msg = document.getElementById('mySaleMsg');
-    const productId = select.value;
-    const product = allProducts.find(p => p.id === productId);
-    if (!product) {
-      msg.textContent = 'من فضلك اختر منتج الأول.';
+    if (!selectedSaleProduct) {
+      msg.textContent = 'من فضلك دور واختار منتج الأول.';
       msg.style.color = '#e0524b';
       return;
     }
+    const product = selectedSaleProduct;
     try {
       await addDoc(collection(db, 'sales'), {
         subEmail: currentUserEmail,
         subName: currentUserName || currentUserEmail,
-        productId,
+        productId: product.id,
         productName: product.name || '',
         productModel: product.model || '',
         status: 'pending',
         timestamp: Date.now()
       });
-      select.value = '';
+      selectedSaleProduct = null;
+      mySaleSelectedChip.classList.add('hidden');
+      mySaleSelectedChip.innerHTML = '';
       msg.textContent = 'تم التسجيل، هيتم مراجعتها من الإدارة.';
       msg.style.color = '#1fa971';
       setTimeout(() => { msg.textContent = ''; }, 3000);
