@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>لوحة تحكم الأسعار</title>
+<title>MAGIC MAIN USER</title>
 <style>
   :root {
     --primary: #16324f;
@@ -151,6 +151,9 @@
   .badge.pending { background: #fef5e7; color: var(--accent); }
   .progress-bar { background: #eef1f4; border-radius: 8px; height: 8px; overflow: hidden; margin-top: 6px; }
   .progress-bar-fill { background: var(--primary-light); height: 100%; border-radius: 8px; transition: width 0.3s; }
+  #targetsTable tr.row-highlight { background: #fef5e7; transition: background 0.4s ease; }
+  .target-type-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .target-type-row select, .target-type-row input { padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; font-family: inherit; font-size: 12.5px; }
   .hidden { display: none !important; }
   .muted { color: var(--muted); font-size: 13px; }
   .you-tag { font-size: 11px; color: var(--accent); }
@@ -295,7 +298,7 @@
 <body>
 
 <div id="loginScreen">
-  <h2>لوحة تحكم الأسعار</h2>
+  <h2>MAGIC MAIN USER</h2>
   <p class="muted">دخول للمصرح لهم فقط</p>
   <button id="googleSignInBtn">تسجيل الدخول بجوجل</button>
   <p id="loginError" class="error-msg" style="display:none;"></p>
@@ -303,17 +306,17 @@
 
 <div id="appScreen" class="hidden">
   <header>
-    <h1>لوحة تحكم الأسعار</h1>
+    <h1>MAGIC MAIN USER</h1>
     <button id="signOutBtn">تسجيل الخروج</button>
   </header>
 
   <div id="tabs">
     <button class="tab-btn active" data-tab="products">المنتجات</button>
     <button class="tab-btn" data-tab="team">فريق العمل</button>
-    <button class="tab-btn" data-tab="log">سجل النشاط</button>
     <button class="tab-btn" data-tab="activation">التنشيط</button>
     <button class="tab-btn" data-tab="target">التارجت</button>
     <button class="tab-btn" data-tab="level">الأداء</button>
+    <button class="tab-btn" data-tab="log">سجل النشاط</button>
     <button class="tab-btn" data-tab="access">سجل الدخول</button>
   </div>
 
@@ -525,6 +528,18 @@
     return model ? `${name} - ${model}` : name;
   }
 
+  // يفصل نص البحث على أي فاصل شائع (فاصلة، شرطة، شرطة مائلة، أقواس، مسافات)
+  // وبيدوّر على كل الكلمات دي مع بعض (AND) في النص المطلوب البحث فيه.
+  function tokenizeQuery(raw) {
+    return raw.toLowerCase().split(/[,\-\/()،]+|\s+/).map(t => t.trim()).filter(Boolean);
+  }
+  function matchesTokens(haystack, rawQuery) {
+    const tokens = tokenizeQuery(rawQuery);
+    if (!tokens.length) return true;
+    const h = haystack.toLowerCase();
+    return tokens.every(t => h.includes(t));
+  }
+
   async function logActivity(message) {
     try {
       await addDoc(collection(db, 'activity_log'), {
@@ -537,15 +552,28 @@
   }
 
   // ---------- Tabs ----------
+  function switchTab(tabName) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tabName));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.toggle('active', c.id === 'tab-' + tabName));
+  }
+
   function initTabs() {
     document.querySelectorAll('.tab-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-        btn.classList.add('active');
-        document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
-      });
+      btn.addEventListener('click', () => switchTab(btn.dataset.tab));
     });
+  }
+
+  function goToTargetTab(highlightEmpId) {
+    switchTab('target');
+    if (!highlightEmpId) return;
+    setTimeout(() => {
+      const row = document.querySelector(`#targetsTable tr[data-id="${CSS.escape(highlightEmpId)}"]`);
+      if (row) {
+        row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        row.classList.add('row-highlight');
+        setTimeout(() => row.classList.remove('row-highlight'), 2200);
+      }
+    }, 60);
   }
 
   // ---------- المنتجات ----------
@@ -557,9 +585,7 @@
     const wrap = document.getElementById('productsTable');
     const q = productSearchInput.value.trim().toLowerCase();
     const filtered = q
-      ? allAdminProducts.filter(({ p }) =>
-          (p.name || '').toLowerCase().includes(q) ||
-          (p.model || '').toLowerCase().includes(q))
+      ? allAdminProducts.filter(({ p }) => matchesTokens(`${p.name || ''} ${p.model || ''}`, q))
       : allAdminProducts;
 
     productsCountEl.textContent = allAdminProducts.length;
@@ -625,6 +651,7 @@
     onSnapshot(q, snap => {
       allAdminProducts = snap.docs.map(d => ({ id: d.id, p: d.data() }));
       renderProductsTable();
+      renderTargetsTab();
     });
   }
 
@@ -845,7 +872,7 @@
 
     onSnapshot(collection(db, 'targets'), snap => {
       allTargets = {};
-      snap.forEach(d => { allTargets[d.id] = d.data().target || 0; });
+      snap.forEach(d => { allTargets[d.id] = d.data(); });
       renderTargetsTab();
     });
   }
@@ -889,6 +916,7 @@
           });
           if (entry) {
             await logActivity(`تم تفعيل عملية بيع "${productLabel(entry.s.productName, entry.s.productModel)}" لـ ${entry.s.subName || entry.s.subEmail}`);
+            goToTargetTab(entry.s.subEmail);
           }
         });
       });
@@ -924,6 +952,23 @@
     }
   }
 
+  function saleMatchesTarget(s, targetType, targetValue) {
+    if (!targetType || targetType === 'all') return true;
+    if (targetType === 'category') return s.productName === targetValue;
+    if (targetType === 'product') return s.productId === targetValue;
+    return true;
+  }
+
+  function targetTypeLabel(t) {
+    if (!t || t.targetType === 'all' || !t.targetType) return 'كل المنتجات';
+    if (t.targetType === 'category') return `فئة: ${t.targetValue || '—'}`;
+    if (t.targetType === 'product') {
+      const prod = allAdminProducts.find(x => x.id === t.targetValue);
+      return `منتج: ${prod ? productLabel(prod.p.name, prod.p.model) : '—'}`;
+    }
+    return 'كل المنتجات';
+  }
+
   function renderTargetsTab() {
     const wrap = document.getElementById('targetsTable');
     if (!wrap) return;
@@ -932,33 +977,76 @@
       wrap.innerHTML = '<p class="muted">لا يوجد أعضاء Sub لحد دلوقتي.</p>';
       return;
     }
+    const categories = [...new Set(allAdminProducts.map(({ p }) => p.name).filter(Boolean))];
     const now = new Date();
-    let html = '<table><thead><tr><th>العضو</th><th>التارجت الشهري</th><th>مبيعات الشهر الحالي</th><th></th></tr></thead><tbody>';
+    let html = '<table><thead><tr><th>العضو</th><th>نوع التارجت</th><th>التارجت الشهري</th><th>مبيعات الشهر الحالي</th><th></th></tr></thead><tbody>';
     subs.forEach(({ id, e }) => {
-      const target = allTargets[id] || 0;
+      const t = allTargets[id] || {};
+      const target = t.target || 0;
+      const targetType = t.targetType || 'all';
+      const targetValue = t.targetValue || '';
       const soldThisMonth = allSales.filter(({ s }) =>
-        s.status === 'activated' && s.subEmail === id && s.activatedAt && isSameMonth(s.activatedAt, now)
+        s.status === 'activated' && s.subEmail === id && s.activatedAt && isSameMonth(s.activatedAt, now) &&
+        saleMatchesTarget(s, targetType, targetValue)
       ).length;
       const pct = target > 0 ? Math.min(100, Math.round((soldThisMonth / target) * 100)) : 0;
+
+      const categoryOptions = categories.map(c => `<option value="${escapeAttr(c)}" ${targetType === 'category' && targetValue === c ? 'selected' : ''}>${escapeAttr(c)}</option>`).join('');
+      const productOptions = allAdminProducts.map(({ id: pid, p }) => `<option value="${escapeAttr(pid)}" ${targetType === 'product' && targetValue === pid ? 'selected' : ''}>${escapeAttr(productLabel(p.name, p.model))}</option>`).join('');
+
       html += `<tr data-id="${id}">
         <td>${escapeAttr(e.name || id)}</td>
+        <td>
+          <div class="target-type-row">
+            <select class="f-target-type">
+              <option value="all" ${targetType === 'all' ? 'selected' : ''}>كل المنتجات</option>
+              <option value="category" ${targetType === 'category' ? 'selected' : ''}>فئة معينة</option>
+              <option value="product" ${targetType === 'product' ? 'selected' : ''}>منتج معين</option>
+            </select>
+            <select class="f-target-category ${targetType === 'category' ? '' : 'hidden'}">
+              <option value="">اختر فئة...</option>
+              ${categoryOptions}
+            </select>
+            <select class="f-target-product ${targetType === 'product' ? '' : 'hidden'}">
+              <option value="">اختر منتج...</option>
+              ${productOptions}
+            </select>
+          </div>
+        </td>
         <td><input class="f-target" type="number" min="0" value="${target}"></td>
         <td>
           <span class="badge ${target > 0 && soldThisMonth >= target ? 'active' : 'role-sub'}">${soldThisMonth} / ${target || '—'}</span>
           <div class="progress-bar"><div class="progress-bar-fill" style="width:${pct}%"></div></div>
+          <div class="muted" style="margin-top:4px;">${escapeAttr(targetTypeLabel(t))}</div>
         </td>
         <td class="actions"><button class="save-btn save-target-btn">حفظ</button></td>
       </tr>`;
     });
     html += '</tbody></table>';
     wrap.innerHTML = html;
+
+    wrap.querySelectorAll('tbody tr').forEach(row => {
+      const typeSelect = row.querySelector('.f-target-type');
+      const categorySelect = row.querySelector('.f-target-category');
+      const productSelect = row.querySelector('.f-target-product');
+      typeSelect.addEventListener('change', () => {
+        categorySelect.classList.toggle('hidden', typeSelect.value !== 'category');
+        productSelect.classList.toggle('hidden', typeSelect.value !== 'product');
+      });
+    });
+
     wrap.querySelectorAll('.save-target-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
         const row = btn.closest('tr');
         const id = row.dataset.id;
         const target = parseInt(row.querySelector('.f-target').value) || 0;
-        await setDoc(doc(db, 'targets', id), { subEmail: id, target, updatedAt: Date.now() }, { merge: true });
-        await logActivity(`تم تحديث التارجت الشهري لـ ${id} إلى ${target}`);
+        const targetType = row.querySelector('.f-target-type').value;
+        let targetValue = '';
+        if (targetType === 'category') targetValue = row.querySelector('.f-target-category').value;
+        if (targetType === 'product') targetValue = row.querySelector('.f-target-product').value;
+        await setDoc(doc(db, 'targets', id), { subEmail: id, target, targetType, targetValue, updatedAt: Date.now() }, { merge: true });
+        const label = targetType === 'all' ? 'كل المنتجات' : (targetType === 'category' ? `فئة "${targetValue}"` : (allAdminProducts.find(x => x.id === targetValue) ? productLabel(allAdminProducts.find(x => x.id === targetValue).p.name, allAdminProducts.find(x => x.id === targetValue).p.model) : 'منتج معين'));
+        await logActivity(`تم تحديث التارجت الشهري لـ ${id} إلى ${target} (${label})`);
       });
     });
   }
