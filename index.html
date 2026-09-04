@@ -510,6 +510,13 @@
   const storage = getStorage(app);
   const provider = new GoogleAuthProvider();
 
+  const ROLE_LABELS = {
+    attendance: 'حضور وانصراف',
+    sub: 'Sub user',
+    main: 'Main user',
+    super: 'Super user'
+  };
+
   const loginScreen = document.getElementById('loginScreen');
   const appScreen = document.getElementById('appScreen');
   const loginError = document.getElementById('loginError');
@@ -670,11 +677,19 @@
     }
 
     const empData = empSnap.data();
+
+    // حساب "حضور وانصراف فقط" مكانه صفحة attendance.html مش هنا
+    if (empData.role === 'attendance') {
+      showError('حسابك مخصص لتسجيل الحضور والانصراف فقط. افتح صفحة الحضور والانصراف (attendance.html).');
+      await signOut(auth);
+      return;
+    }
+
     currentUserRole = empData.role || 'sub';
     loginScreen.classList.add('hidden');
     appScreen.classList.remove('hidden');
 
-    const isMain = empData.role === 'main';
+    const isMain = currentUserRole === 'main' || currentUserRole === 'super';
     adminLinkBtn.classList.toggle('hidden', !isMain);
 
     // تسجيل حدث الدخول في سجل الدخول (لا يوقف الدخول لو فشل)
@@ -685,7 +700,7 @@
       });
     } catch (e) { /* تجاهل فشل التسجيل */ }
 
-    const roleLabel = isMain ? 'Main user' : 'Sub user';
+    const roleLabel = ROLE_LABELS[currentUserRole] || currentUserRole;
     welcomeBanner.classList.remove('fade-out');
     welcomeBanner.innerHTML = `
       <h2>مرحباً بك في ماجيك${empData.name ? '، ' + escapeHtml(empData.name) : ''} 👋</h2>
@@ -1085,6 +1100,9 @@
     myTargetUnsub = onSnapshot(doc(db, 'targets', currentUserEmail), snap => {
       myTargetData = snap.exists() ? snap.data() : null;
       renderMyTarget();
+    }, () => {
+      const wrap = document.getElementById('myTargetCard');
+      if (wrap) wrap.innerHTML = '<p class="muted">لسه معملكش تارجت من الإدارة.</p>';
     });
   }
 
