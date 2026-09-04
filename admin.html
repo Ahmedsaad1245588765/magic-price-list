@@ -143,11 +143,14 @@
   .save-btn { background: var(--success); color: #fff; }
   .del-btn { background: var(--danger); color: #fff; }
   .role-btn { background: #eef2f5; color: var(--primary); }
+  .perms-btn { background: #eaf2f8; color: var(--primary-light); }
   .badge { padding: 3px 10px; border-radius: 12px; font-size: 12px; display: inline-block; }
   .badge.active { background: #eafaf1; color: var(--success); cursor: pointer; }
   .badge.inactive { background: #fdedec; color: var(--danger); cursor: pointer; }
   .badge.role-main { background: #eaf2f8; color: var(--primary-light); }
   .badge.role-sub { background: #f4f4f4; color: var(--muted); }
+  .badge.role-super { background: #fdf2e9; color: var(--accent); }
+  .badge.role-attendance { background: #eef7f0; color: var(--success); }
   .badge.pending { background: #fef5e7; color: var(--accent); }
   .progress-bar { background: #eef1f4; border-radius: 8px; height: 8px; overflow: hidden; margin-top: 6px; }
   .progress-bar-fill { background: var(--primary-light); height: 100%; border-radius: 8px; transition: width 0.3s; }
@@ -157,6 +160,31 @@
   .hidden { display: none !important; }
   .muted { color: var(--muted); font-size: 13px; }
   .you-tag { font-size: 11px; color: var(--accent); }
+
+  /* ---------- Permissions modal ---------- */
+  #permsModal {
+    position: fixed; inset: 0; z-index: 1000;
+    background: rgba(15, 25, 45, 0.45);
+    display: flex; align-items: center; justify-content: center;
+    padding: 18px;
+  }
+  #permsModalBox {
+    width: min(440px, 100%);
+    max-height: 86vh;
+    overflow-y: auto;
+    background: #fff;
+    border-radius: 14px;
+    padding: 20px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+  }
+  #permsModalBox h3 { margin: 0 0 4px; color: var(--primary); font-size: 17px; }
+  #permsModalBox p.muted { margin: 0 0 14px; }
+  .perm-row { display: flex; align-items: center; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+  .perm-row .perm-checks { display: flex; gap: 16px; }
+  .perm-row label { display: flex; align-items: center; gap: 5px; font-size: 13px; color: var(--text); cursor: pointer; }
+  #permsModalActions { display: flex; gap: 10px; margin-top: 18px; }
+  #permsModalActions button { flex: 1; border: none; padding: 10px; border-radius: 8px; cursor: pointer; font-size: 14px; font-family: inherit; }
+  #permsCancelBtn { background: #eef2f5; color: var(--primary); }
 
   /* ---------- Team Chat (WhatsApp style) ---------- */
   #chatWrap {
@@ -250,20 +278,20 @@
     .form-row { display: grid; grid-template-columns: 1fr; gap: 10px; }
     .form-row input, .form-row select, button.primary { width: 100%; min-width: 0; }
 
-    #productsTable table, #employeesTable table, #accessLogTable table,
-    #productsTable thead, #employeesTable thead, #accessLogTable thead,
-    #productsTable tbody, #employeesTable tbody, #accessLogTable tbody,
-    #productsTable tr, #employeesTable tr, #accessLogTable tr,
-    #productsTable td, #employeesTable td, #accessLogTable td { display: block; width: 100%; }
-    #productsTable thead, #employeesTable thead, #accessLogTable thead { display: none; }
-    #productsTable tr, #employeesTable tr, #accessLogTable tr {
+    #productsTable table, #employeesTable table, #accessLogTable table, #attendanceTable table,
+    #productsTable thead, #employeesTable thead, #accessLogTable thead, #attendanceTable thead,
+    #productsTable tbody, #employeesTable tbody, #accessLogTable tbody, #attendanceTable tbody,
+    #productsTable tr, #employeesTable tr, #accessLogTable tr, #attendanceTable tr,
+    #productsTable td, #employeesTable td, #accessLogTable td, #attendanceTable td { display: block; width: 100%; }
+    #productsTable thead, #employeesTable thead, #accessLogTable thead, #attendanceTable thead { display: none; }
+    #productsTable tr, #employeesTable tr, #accessLogTable tr, #attendanceTable tr {
       margin: 0 0 14px;
       padding: 8px 12px;
       border: 1px solid var(--border);
       border-radius: 10px;
       background: #fafcfd;
     }
-    #productsTable td, #employeesTable td, #accessLogTable td {
+    #productsTable td, #employeesTable td, #accessLogTable td, #attendanceTable td {
       display: grid;
       grid-template-columns: 88px minmax(0, 1fr);
       align-items: center;
@@ -272,8 +300,8 @@
       text-align: right;
       border-bottom: 1px solid var(--border);
     }
-    #productsTable td:last-child, #employeesTable td:last-child, #accessLogTable td:last-child { border-bottom: 0; }
-    #productsTable td::before, #employeesTable td::before, #accessLogTable td::before { color: var(--muted); font-size: 12px; font-weight: 700; }
+    #productsTable td:last-child, #employeesTable td:last-child, #accessLogTable td:last-child, #attendanceTable td:last-child { border-bottom: 0; }
+    #productsTable td::before, #employeesTable td::before, #accessLogTable td::before, #attendanceTable td::before { color: var(--muted); font-size: 12px; font-weight: 700; }
     #productsTable td:nth-child(1)::before { content: 'الاسم'; }
     #productsTable td:nth-child(2)::before { content: 'الموديل'; }
     #productsTable td:nth-child(3)::before { content: 'السعر'; }
@@ -287,6 +315,10 @@
     #accessLogTable td:nth-child(3)::before { content: 'الصلاحية'; }
     #accessLogTable td:nth-child(4)::before { content: 'الحدث'; }
     #accessLogTable td:nth-child(5)::before { content: 'الوقت'; }
+    #attendanceTable td:nth-child(1)::before { content: 'الاسم'; }
+    #attendanceTable td:nth-child(2)::before { content: 'الإيميل'; }
+    #attendanceTable td:nth-child(3)::before { content: 'الحدث'; }
+    #attendanceTable td:nth-child(4)::before { content: 'الوقت'; }
     .actions { display: flex !important; grid-template-columns: none !important; flex-wrap: wrap; gap: 6px; }
     .actions::before { display: none; }
     .actions button { margin-left: 0; flex: 1; min-width: 90px; }
@@ -316,6 +348,7 @@
     <button class="tab-btn" data-tab="activation">التنشيط</button>
     <button class="tab-btn" data-tab="target">التارجت</button>
     <button class="tab-btn" data-tab="level">الأداء</button>
+    <button class="tab-btn" data-tab="attendance">الحضور</button>
     <button class="tab-btn" data-tab="log">سجل النشاط</button>
     <button class="tab-btn" data-tab="access">سجل الدخول</button>
   </div>
@@ -323,7 +356,7 @@
   <main>
 
     <div class="tab-content active" id="tab-products">
-      <div class="card">
+      <div class="card" id="addProductCard">
         <h2>➕ إضافة منتج جديد</h2>
         <div class="form-row">
           <input type="text" id="newName" placeholder="اسم المنتج">
@@ -347,15 +380,12 @@
     </div>
 
     <div class="tab-content" id="tab-team">
-      <div class="card">
+      <div class="card" id="addEmpCard">
         <h2>➕ إضافة عضو جديد</h2>
         <div class="form-row">
           <input type="text" id="newEmpName" placeholder="اسم الموظف">
           <input type="email" id="newEmpEmail" placeholder="إيميل الموظف (جيميل)">
-          <select id="newEmpRole">
-            <option value="sub">Sub user — يشوف الأسعار بس</option>
-            <option value="main">Main user — صلاحيات كاملة</option>
-          </select>
+          <select id="newEmpRole"></select>
           <button class="primary" id="addEmpBtn">إضافة</button>
         </div>
         <p id="addEmpMsg" class="muted"></p>
@@ -370,7 +400,7 @@
     <div class="tab-content" id="tab-log">
       <div class="card">
         <h2>💬 دردشة الفريق</h2>
-        <p class="muted">كل أعضاء الفريق (Main و Sub) يقدروا يكتبوا هنا، وأي حدث تلقائي (تعديل سعر، إضافة عضو...) بيظهر هنا كمان.</p>
+        <p class="muted">كل أعضاء الفريق يقدروا يكتبوا هنا، وأي حدث تلقائي (تعديل سعر، إضافة عضو...) بيظهر هنا كمان.</p>
         <div id="chatWrap">
           <div id="chatMessages"></div>
           <div id="chatInputBar">
@@ -384,13 +414,13 @@
     <div class="tab-content" id="tab-activation">
       <div class="card">
         <h2>🕓 عمليات بيع قيد المراجعة <span id="pendingSalesCount" class="badge pending">0</span></h2>
-        <p class="muted">لما أي عضو (Main أو Sub) يسجل إنه باع منتج من صفحة "منتجاتي"، هتظهر هنا لحد ما تدوس "تنشيط".</p>
+        <p class="muted">لما أي عضو يسجل إنه باع منتج من صفحة "منتجاتي"، هتظهر هنا لحد ما تدوس "تنشيط".</p>
         <div id="pendingSalesTable"><p class="muted">جاري التحميل...</p></div>
       </div>
 
       <div class="card">
         <h2>✅ عمليات بيع مُفعّلة <span id="activatedSalesCount" class="badge active">0</span></h2>
-        <p class="muted">بعد التفعيل، العملية بتتحسب في التارجت وصفحة الأداء. الحذف متاح للأدمن الرئيسي بس.</p>
+        <p class="muted">بعد التفعيل، العملية بتتحسب في التارجت وصفحة الأداء.</p>
         <div id="activatedSalesTable"><p class="muted">جاري التحميل...</p></div>
       </div>
     </div>
@@ -420,15 +450,35 @@
       </div>
     </div>
 
+    <div class="tab-content" id="tab-attendance">
+      <div class="card">
+        <h2>🕘 سجل الحضور والانصراف <span id="attendanceCount" class="badge role-main">0</span></h2>
+        <p class="muted">سجل تلقائي لكل مرة عضو حضور وانصراف يسجل دخوله أو خروجه من صفحة الحضور.</p>
+        <div id="attendanceTable"><p class="muted">جاري التحميل...</p></div>
+      </div>
+    </div>
+
     <div class="tab-content" id="tab-access">
       <div class="card">
         <h2>🔑 سجل الدخول والخروج <span id="accessLogCount" class="badge role-main">0</span></h2>
-        <p class="muted">سجل تلقائي بكل مرة أي عضو من الفريق (Main أو Sub) يدخل أو يخرج من صفحة الأسعار.</p>
+        <p class="muted">سجل تلقائي بكل مرة أي عضو من الفريق يدخل أو يخرج من صفحة الأسعار.</p>
         <div id="accessLogTable"><p class="muted">جاري التحميل...</p></div>
       </div>
     </div>
 
   </main>
+</div>
+
+<div id="permsModal" class="hidden">
+  <div id="permsModalBox">
+    <h3>صلاحيات <span id="permsModalName"></span></h3>
+    <p class="muted">حدد إيه اللي العضو ده يقدر "يشوفه" و"يعدّل فيه" من كل تاب.</p>
+    <div id="permsModalBody"></div>
+    <div id="permsModalActions">
+      <button id="permsCancelBtn">إلغاء</button>
+      <button class="primary" id="permsSaveBtn">حفظ الصلاحيات</button>
+    </div>
+  </div>
 </div>
 
 <script type="module">
@@ -450,8 +500,32 @@
     appId: "1:950313056936:web:a887ff76ca16094bf9e09d"
   };
 
-  // إيميل الأدمن الرئيسي الافتراضي (فيه صلاحية Main دايمًا، حتى لو حصل خطأ في البيانات)
+  // إيميل الأدمن الرئيسي الافتراضي (فيه صلاحية Super دايمًا، حتى لو حصل خطأ في البيانات)
   const SUPER_ADMIN = "ahmedsaad13k@gmail.com";
+
+  // التابات اللي بتتحكم فيها الصلاحيات (قراءة/تعديل) بالنسبة لـ Main user
+  const PERMISSION_TABS = [
+    { key: 'products',   label: 'المنتجات' },
+    { key: 'team',       label: 'فريق العمل' },
+    { key: 'activation', label: 'التنشيط' },
+    { key: 'target',     label: 'التارجت' },
+    { key: 'level',      label: 'الأداء' },
+    { key: 'attendance', label: 'الحضور' },
+    { key: 'access',     label: 'سجل الدخول' }
+  ];
+
+  const ROLE_LABELS = {
+    attendance: 'حضور وانصراف',
+    sub: 'Sub user',
+    main: 'Main user',
+    super: 'Super user'
+  };
+  const ROLE_BADGE_CLASS = {
+    attendance: 'role-attendance',
+    sub: 'role-sub',
+    main: 'role-main',
+    super: 'role-super'
+  };
 
   const app = initializeApp(firebaseConfig);
   const auth = getAuth(app);
@@ -463,8 +537,22 @@
   const loginError = document.getElementById('loginError');
 
   let currentUserEmail = null;
-  let currentUserRole = null;
+  let currentUserRole = null;   // 'main' أو 'super' (اللي يدخلوا اللوحة فقط)
   let currentUserName = null;
+  let isSuperUser = false;
+  let currentUserPerms = {};    // بيتملى بس لو الدور main
+
+  function canRead(tabKey) {
+    return isSuperUser || !!(currentUserPerms[tabKey] && currentUserPerms[tabKey].read);
+  }
+  function canWrite(tabKey) {
+    return isSuperUser || !!(currentUserPerms[tabKey] && currentUserPerms[tabKey].write);
+  }
+  function defaultPerms() {
+    const p = {};
+    PERMISSION_TABS.forEach(t => { p[t.key] = { read: false, write: false }; });
+    return p;
+  }
 
   // ---------- تسجيل الدخول ----------
   document.getElementById('googleSignInBtn').addEventListener('click', async () => {
@@ -487,35 +575,42 @@
     }
     currentUserEmail = user.email;
 
-    // تفعيل ذاتي للأدمن الرئيسي الافتراضي أول مرة يدخل
+    // تفعيل ذاتي للأدمن الرئيسي الافتراضي أول مرة يدخل، بدور Super دايمًا
     if (user.email === SUPER_ADMIN) {
       await setDoc(doc(db, 'employees', user.email), {
-        email: user.email, active: true, role: 'main',
+        email: user.email, active: true, role: 'super',
         name: user.displayName || 'المدير'
       }, { merge: true });
     }
 
     const empSnap = await getDoc(doc(db, 'employees', user.email));
-    const isMain = user.email === SUPER_ADMIN ||
-      (empSnap.exists() && empSnap.data().role === 'main' && empSnap.data().active === true);
+    const empData = empSnap.exists() ? empSnap.data() : null;
 
-    if (!isMain) {
-      loginError.textContent = 'هذا الحساب ليس لديه صلاحية Main user للدخول للوحة التحكم.';
+    isSuperUser = user.email === SUPER_ADMIN || (empData && empData.role === 'super' && empData.active === true);
+    const isMainAllowed = isSuperUser || (empData && empData.role === 'main' && empData.active === true);
+
+    if (!isMainAllowed) {
+      loginError.textContent = 'هذا الحساب ليس لديه صلاحية Main أو Super للدخول للوحة التحكم.';
       loginError.style.display = 'block';
       await signOut(auth);
       return;
     }
 
-    currentUserRole = 'main';
-    currentUserName = (empSnap.exists() && empSnap.data().name) || user.displayName || user.email;
+    currentUserRole = isSuperUser ? 'super' : 'main';
+    currentUserPerms = (!isSuperUser && empData && empData.permissions) ? empData.permissions : {};
+    currentUserName = (empData && empData.name) || user.displayName || user.email;
+
     loginScreen.classList.add('hidden');
     appScreen.classList.remove('hidden');
     initTabs();
+    populateNewEmpRoleOptions();
+    applyTabVisibility();
     loadProducts();
     loadEmployees();
     startChat();
     loadAccessLog();
     loadSales();
+    loadAttendance();
   });
 
   function escapeAttr(str) {
@@ -563,7 +658,24 @@
     });
   }
 
+  // إخفاء أي تاب ما عندش المستخدم صلاحية "قراءة" ليه، والانتقال لأول تاب متاح لو التاب الحالي اتخفى
+  function applyTabVisibility() {
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      const tab = btn.dataset.tab;
+      const isGated = PERMISSION_TABS.some(t => t.key === tab);
+      if (isGated) btn.classList.toggle('hidden', !canRead(tab));
+    });
+    const activeBtn = document.querySelector('.tab-btn.active');
+    if (!activeBtn || activeBtn.classList.contains('hidden')) {
+      const firstVisible = document.querySelector('.tab-btn:not(.hidden)');
+      if (firstVisible) switchTab(firstVisible.dataset.tab);
+    }
+    document.getElementById('addProductCard').classList.toggle('hidden', !canWrite('products'));
+    document.getElementById('addEmpCard').classList.toggle('hidden', !canWrite('team'));
+  }
+
   function goToTargetTab(highlightEmpId) {
+    if (!canRead('target')) return;
     switchTab('target');
     if (!highlightEmpId) return;
     setTimeout(() => {
@@ -589,6 +701,7 @@
       : allAdminProducts;
 
     productsCountEl.textContent = allAdminProducts.length;
+    const writable = canWrite('products');
 
     if (!allAdminProducts.length) {
       wrap.innerHTML = '<p class="muted">لا توجد منتجات بعد.</p>';
@@ -603,18 +716,17 @@
     filtered.forEach(({ id, p }) => {
       const colorsStr = Array.isArray(p.colors) ? p.colors.join(', ') : '';
       html += `<tr data-id="${id}" data-old-price="${escapeAttr(p.price ?? '')}" data-old-name="${escapeAttr(p.name ?? '')}" data-old-model="${escapeAttr(p.model ?? '')}">
-        <td><input class="f-name" value="${escapeAttr(p.name || '')}"></td>
-        <td><input class="f-model" value="${escapeAttr(p.model || '')}"></td>
-        <td><input class="f-price" type="number" step="0.01" value="${escapeAttr(p.price ?? '')}"></td>
-        <td><input class="f-colors" value="${escapeAttr(colorsStr)}"></td>
-        <td class="actions">
-          <button class="save-btn">حفظ</button>
-          <button class="del-btn">حذف</button>
-        </td>
+        <td><input class="f-name" value="${escapeAttr(p.name || '')}" ${writable ? '' : 'disabled'}></td>
+        <td><input class="f-model" value="${escapeAttr(p.model || '')}" ${writable ? '' : 'disabled'}></td>
+        <td><input class="f-price" type="number" step="0.01" value="${escapeAttr(p.price ?? '')}" ${writable ? '' : 'disabled'}></td>
+        <td><input class="f-colors" value="${escapeAttr(colorsStr)}" ${writable ? '' : 'disabled'}></td>
+        <td class="actions">${writable ? '<button class="save-btn">حفظ</button><button class="del-btn">حذف</button>' : ''}</td>
       </tr>`;
     });
     html += '</tbody></table>';
     wrap.innerHTML = html;
+
+    if (!writable) return;
 
     wrap.querySelectorAll('tbody tr').forEach(row => {
       const id = row.dataset.id;
@@ -680,11 +792,32 @@
 
   // ---------- فريق العمل ----------
   let allEmployees = [];
+
+  function populateNewEmpRoleOptions() {
+    const select = document.getElementById('newEmpRole');
+    select.innerHTML = `
+      <option value="attendance">حضور وانصراف فقط</option>
+      <option value="sub" selected>Sub user — بائع، يشوف الأسعار ويسجل مبيعات</option>
+      <option value="main">Main user — صلاحيات تحددها بعد الإضافة</option>
+      ${isSuperUser ? '<option value="super">Super user — كل صلاحياتي بالظبط</option>' : ''}
+    `;
+  }
+
+  function roleSelectOptions(currentRole) {
+    return `
+      <option value="attendance" ${currentRole === 'attendance' ? 'selected' : ''}>حضور وانصراف فقط</option>
+      <option value="sub" ${currentRole === 'sub' ? 'selected' : ''}>Sub user</option>
+      <option value="main" ${currentRole === 'main' ? 'selected' : ''}>Main user</option>
+      ${isSuperUser ? `<option value="super" ${currentRole === 'super' ? 'selected' : ''}>Super user</option>` : ''}
+    `;
+  }
+
   function loadEmployees() {
     const q = query(collection(db, 'employees'), orderBy('email'));
     onSnapshot(q, snap => {
       allEmployees = snap.docs.map(d => ({ id: d.id, e: d.data() }));
       const wrap = document.getElementById('employeesTable');
+      const writable = canWrite('team');
       if (snap.empty) {
         wrap.innerHTML = '<p class="muted">لا يوجد أعضاء مضافون بعد.</p>';
         renderTargetsTab();
@@ -694,16 +827,24 @@
       let html = '<table><thead><tr><th>الاسم</th><th>الإيميل</th><th>الصلاحية</th><th>الحالة</th><th></th></tr></thead><tbody>';
       snap.forEach(d => {
         const e = d.data();
+        const role = e.role || 'sub';
         const isSelf = d.id === currentUserEmail;
-        const isSuper = d.id === SUPER_ADMIN;
-        html += `<tr data-id="${d.id}" data-role="${e.role || 'sub'}">
-          <td><input class="f-emp-name" value="${escapeAttr(e.name || '')}" placeholder="بدون اسم"></td>
+        const isSuperEmp = role === 'super';
+        const canEditThisRow = writable && !isSelf && !isSuperEmp;
+
+        const roleCell = canEditThisRow
+          ? `<select class="f-role-select">${roleSelectOptions(role)}</select>`
+          : `<span class="badge ${ROLE_BADGE_CLASS[role] || 'role-sub'}">${ROLE_LABELS[role] || role}</span>`;
+
+        html += `<tr data-id="${d.id}" data-role="${role}">
+          <td><input class="f-emp-name" value="${escapeAttr(e.name || '')}" placeholder="بدون اسم" ${writable ? '' : 'disabled'}></td>
           <td>${escapeAttr(e.email || d.id)} ${isSelf ? '<span class="you-tag">(أنت)</span>' : ''}</td>
-          <td><span class="badge ${e.role === 'main' ? 'role-main' : 'role-sub'}">${e.role === 'main' ? 'Main user' : 'Sub user'}</span></td>
-          <td><span class="badge ${e.active ? 'active' : 'inactive'} toggle-active">${e.active ? 'مفعّل' : 'موقوف'}</span></td>
+          <td>${roleCell}</td>
+          <td><span class="badge ${e.active ? 'active' : 'inactive'} ${(writable && !isSuperEmp) ? 'toggle-active' : ''}">${e.active ? 'مفعّل' : 'موقوف'}</span></td>
           <td class="actions">
-            <button class="save-btn save-name-btn">حفظ الاسم</button>
-            ${(!isSelf && !isSuper) ? `<button class="role-btn">${e.role === 'main' ? 'تحويل لـ Sub' : 'ترقية لـ Main'}</button><button class="del-btn">حذف</button>` : '<span class="muted">—</span>'}
+            ${writable ? '<button class="save-btn save-name-btn">حفظ الاسم</button>' : ''}
+            ${(isSuperUser && role === 'main') ? '<button class="perms-btn">الصلاحيات</button>' : ''}
+            ${(canEditThisRow) ? '<button class="del-btn">حذف</button>' : ''}
           </td>
         </tr>`;
       });
@@ -712,40 +853,44 @@
 
       wrap.querySelectorAll('tbody tr').forEach(row => {
         const id = row.dataset.id;
+        const role = row.dataset.role;
         const isSelf = id === currentUserEmail;
-        const isSuper = id === SUPER_ADMIN;
+        const isSuperEmp = role === 'super';
 
-        row.querySelector('.save-name-btn').addEventListener('click', async () => {
+        row.querySelector('.save-name-btn')?.addEventListener('click', async () => {
           const name = row.querySelector('.f-emp-name').value.trim();
           await updateDoc(doc(db, 'employees', id), { name });
           await logActivity(`تم تحديث اسم العضو ${id} إلى "${name}"`);
         });
 
-        row.querySelector('.toggle-active').addEventListener('click', async (e) => {
-          if (isSuper) { alert('لا يمكن إيقاف حساب الأدمن الرئيسي.'); return; }
+        row.querySelector('.toggle-active')?.addEventListener('click', async (e) => {
           const isActive = e.target.textContent.trim() === 'مفعّل';
           await updateDoc(doc(db, 'employees', id), { active: !isActive });
           await logActivity(`تم ${isActive ? 'إيقاف' : 'تفعيل'} حساب ${id}`);
         });
 
-        const roleBtn = row.querySelector('.role-btn');
-        if (roleBtn) {
-          roleBtn.addEventListener('click', async () => {
-            const currentRole = row.dataset.role;
-            const newRole = currentRole === 'main' ? 'sub' : 'main';
-            await updateDoc(doc(db, 'employees', id), { role: newRole });
-            await logActivity(`تم تغيير صلاحية ${id} إلى ${newRole === 'main' ? 'Main user' : 'Sub user'}`);
-          });
-        }
-        const delBtn = row.querySelector('.del-btn');
-        if (delBtn) {
-          delBtn.addEventListener('click', async () => {
-            if (confirm(`متأكد من حذف ${id} من الفريق؟`)) {
-              await deleteDoc(doc(db, 'employees', id));
-              await logActivity(`تم حذف عضو: ${id}`);
-            }
-          });
-        }
+        row.querySelector('.f-role-select')?.addEventListener('change', async (e) => {
+          const newRole = e.target.value;
+          const updateData = { role: newRole };
+          if (newRole === 'main') {
+            const emp = allEmployees.find(x => x.id === id);
+            if (!emp || !emp.e.permissions) updateData.permissions = defaultPerms();
+          }
+          await updateDoc(doc(db, 'employees', id), updateData);
+          await logActivity(`تم تغيير صلاحية ${id} إلى ${ROLE_LABELS[newRole] || newRole}`);
+        });
+
+        row.querySelector('.perms-btn')?.addEventListener('click', () => {
+          const emp = allEmployees.find(x => x.id === id);
+          openPermsModal(id, (emp && emp.e.name) || id, (emp && emp.e.permissions) || {});
+        });
+
+        row.querySelector('.del-btn')?.addEventListener('click', async () => {
+          if (confirm(`متأكد من حذف ${id} من الفريق؟`)) {
+            await deleteDoc(doc(db, 'employees', id));
+            await logActivity(`تم حذف عضو: ${id}`);
+          }
+        });
       });
       renderTargetsTab();
       renderLevelEmpOptions();
@@ -762,13 +907,57 @@
       msg.style.color = '#c0392b';
       return;
     }
-    await setDoc(doc(db, 'employees', email), { email, name, active: true, role });
-    await logActivity(`تمت إضافة عضو جديد: ${name || email} (${role === 'main' ? 'Main user' : 'Sub user'})`);
+    if (role === 'super' && !isSuperUser) {
+      msg.textContent = 'مسموح للـ Super بس يعيّن Super جديد.';
+      msg.style.color = '#c0392b';
+      return;
+    }
+    const empDoc = { email, name, active: true, role };
+    if (role === 'main') empDoc.permissions = defaultPerms();
+    await setDoc(doc(db, 'employees', email), empDoc);
+    await logActivity(`تمت إضافة عضو جديد: ${name || email} (${ROLE_LABELS[role] || role})`);
     document.getElementById('newEmpName').value = '';
     document.getElementById('newEmpEmail').value = '';
     msg.textContent = 'تمت الإضافة بنجاح.';
     msg.style.color = '#1e8449';
     setTimeout(() => msg.textContent = '', 2500);
+  });
+
+  // ---------- بوب أب الصلاحيات ----------
+  let permsModalTargetId = null;
+
+  function openPermsModal(empId, empName, currentPerms) {
+    permsModalTargetId = empId;
+    document.getElementById('permsModalName').textContent = empName || empId;
+    const body = document.getElementById('permsModalBody');
+    body.innerHTML = PERMISSION_TABS.map(t => {
+      const p = currentPerms[t.key] || {};
+      return `<div class="perm-row">
+        <span>${t.label}</span>
+        <span class="perm-checks">
+          <label><input type="checkbox" class="perm-read" data-key="${t.key}" ${p.read ? 'checked' : ''}> قراءة</label>
+          <label><input type="checkbox" class="perm-write" data-key="${t.key}" ${p.write ? 'checked' : ''}> تعديل</label>
+        </span>
+      </div>`;
+    }).join('');
+    document.getElementById('permsModal').classList.remove('hidden');
+  }
+
+  document.getElementById('permsCancelBtn').addEventListener('click', () => {
+    document.getElementById('permsModal').classList.add('hidden');
+  });
+
+  document.getElementById('permsSaveBtn').addEventListener('click', async () => {
+    const body = document.getElementById('permsModalBody');
+    const perms = {};
+    PERMISSION_TABS.forEach(t => {
+      const write = body.querySelector(`.perm-write[data-key="${t.key}"]`).checked;
+      const read = body.querySelector(`.perm-read[data-key="${t.key}"]`).checked || write; // التعديل يستلزم القراءة تلقائيًا
+      perms[t.key] = { read, write };
+    });
+    await updateDoc(doc(db, 'employees', permsModalTargetId), { permissions: perms });
+    await logActivity(`تم تحديث صلاحيات العضو ${permsModalTargetId}`);
+    document.getElementById('permsModal').classList.add('hidden');
   });
 
   // ---------- دردشة الفريق ----------
@@ -793,10 +982,11 @@
       }
       const isOwn = m.byEmail === currentUserEmail;
       const senderLabel = isOwn ? '' : `<div class="chat-sender">${escapeAttr(m.byName || m.byEmail || '')}</div>`;
+      const audio = m.audioUrl ? `<audio controls preload="metadata" src="${escapeAttr(m.audioUrl)}" style="display:block;margin-top:6px;width:min(230px,100%);height:32px;"></audio>` : '';
       return `
         <div class="chat-bubble-row ${isOwn ? 'own' : 'other'}">
           ${senderLabel}
-          <div class="chat-bubble">${escapeAttr(m.message)}</div>
+          <div class="chat-bubble">${m.audioUrl ? '🎙 رسالة صوتية' : escapeAttr(m.message)}${audio}</div>
           <div class="chat-time">${formatChatTime(m.timestamp)}</div>
         </div>`;
     }).join('');
@@ -849,18 +1039,50 @@
         html += `<tr>
           <td>${escapeAttr(e.name || '—')}</td>
           <td>${escapeAttr(e.email || '')}</td>
-          <td><span class="badge ${e.role === 'main' ? 'role-main' : 'role-sub'}">${e.role === 'main' ? 'Main user' : 'Sub user'}</span></td>
+          <td><span class="badge ${ROLE_BADGE_CLASS[e.role] || 'role-sub'}">${ROLE_LABELS[e.role] || e.role || ''}</span></td>
           <td><span class="badge ${isLogin ? 'active' : 'inactive'}">${isLogin ? 'دخول' : 'خروج'}</span></td>
           <td>${dt}</td>
         </tr>`;
       });
       html += '</tbody></table>';
       wrap.innerHTML = html;
+    }, () => {
+      document.getElementById('accessLogTable').innerHTML = '<p class="muted">ماعندكش صلاحية قراءة سجل الدخول.</p>';
     });
   }
+
+  // ---------- سجل الحضور والانصراف ----------
+  function loadAttendance() {
+    const q = query(collection(db, 'attendance'), orderBy('timestamp', 'desc'), limit(500));
+    onSnapshot(q, snap => {
+      const wrap = document.getElementById('attendanceTable');
+      document.getElementById('attendanceCount').textContent = snap.size;
+      if (snap.empty) {
+        wrap.innerHTML = '<p class="muted">لا يوجد سجل حضور بعد.</p>';
+        return;
+      }
+      let html = '<table><thead><tr><th>الاسم</th><th>الإيميل</th><th>الحدث</th><th>الوقت</th></tr></thead><tbody>';
+      snap.forEach(d => {
+        const e = d.data();
+        const dt = e.timestamp ? new Date(e.timestamp).toLocaleString('ar-EG') : '';
+        const isIn = e.action === 'in';
+        html += `<tr>
+          <td>${escapeAttr(e.name || '—')}</td>
+          <td>${escapeAttr(e.email || '')}</td>
+          <td><span class="badge ${isIn ? 'active' : 'inactive'}">${isIn ? 'حضور' : 'انصراف'}</span></td>
+          <td>${dt}</td>
+        </tr>`;
+      });
+      html += '</tbody></table>';
+      wrap.innerHTML = html;
+    }, () => {
+      document.getElementById('attendanceTable').innerHTML = '<p class="muted">ماعندكش صلاحية قراءة سجل الحضور.</p>';
+    });
+  }
+
   // ---------- المبيعات: التنشيط + التارجت + الأداء ----------
   let allSales = [];
-  let allTargets = {}; // subEmail -> target number
+  let allTargets = {}; // subEmail -> target data
 
   function loadSales() {
     const q = query(collection(db, 'sales'), orderBy('timestamp', 'desc'), limit(1000));
@@ -890,6 +1112,7 @@
     const activated = allSales.filter(({ s }) => s.status === 'activated');
     document.getElementById('pendingSalesCount').textContent = pending.length;
     document.getElementById('activatedSalesCount').textContent = activated.length;
+    const writable = canWrite('activation');
 
     if (!pending.length) {
       pendingWrap.innerHTML = '<p class="muted">لا توجد عمليات بيع قيد المراجعة.</p>';
@@ -901,7 +1124,7 @@
           <td>${escapeAttr(s.subName || s.subEmail || '')}</td>
           <td>${escapeAttr(productLabel(s.productName || '', s.productModel || ''))}</td>
           <td>${dt}</td>
-          <td class="actions"><button class="save-btn activate-btn">تنشيط</button></td>
+          <td class="actions">${writable ? '<button class="save-btn activate-btn">تنشيط</button>' : ''}</td>
         </tr>`;
       });
       html += '</tbody></table>';
@@ -925,7 +1148,7 @@
     if (!activated.length) {
       activatedWrap.innerHTML = '<p class="muted">لا توجد عمليات بيع مفعّلة بعد.</p>';
     } else {
-      const canDelete = currentUserEmail === SUPER_ADMIN;
+      const canDelete = isSuperUser;
       let html = '<table><thead><tr><th>العضو</th><th>المنتج</th><th>تاريخ التفعيل</th>' + (canDelete ? '<th></th>' : '') + '</tr></thead><tbody>';
       activated.forEach(({ id, s }) => {
         const dt = s.activatedAt ? new Date(s.activatedAt).toLocaleString('ar-EG') : '';
@@ -977,9 +1200,10 @@
       wrap.innerHTML = '<p class="muted">لا يوجد أعضاء Sub لحد دلوقتي.</p>';
       return;
     }
+    const writable = canWrite('target');
     const categories = [...new Set(allAdminProducts.map(({ p }) => p.name).filter(Boolean))];
     const now = new Date();
-    let html = '<table><thead><tr><th>العضو</th><th>نوع التارجت</th><th>التارجت الشهري</th><th>مبيعات الشهر الحالي</th><th></th></tr></thead><tbody>';
+    let html = '<table><thead><tr><th>العضو</th><th>نوع التارجت</th><th>التارجت الشهري</th><th>مبيعات الشهر الحالي</th>' + (writable ? '<th></th>' : '') + '</tr></thead><tbody>';
     subs.forEach(({ id, e }) => {
       const t = allTargets[id] || {};
       const target = t.target || 0;
@@ -998,28 +1222,28 @@
         <td>${escapeAttr(e.name || id)}</td>
         <td>
           <div class="target-type-row">
-            <select class="f-target-type">
+            <select class="f-target-type" ${writable ? '' : 'disabled'}>
               <option value="all" ${targetType === 'all' ? 'selected' : ''}>كل المنتجات</option>
               <option value="category" ${targetType === 'category' ? 'selected' : ''}>فئة معينة</option>
               <option value="product" ${targetType === 'product' ? 'selected' : ''}>منتج معين</option>
             </select>
-            <select class="f-target-category ${targetType === 'category' ? '' : 'hidden'}">
+            <select class="f-target-category ${targetType === 'category' ? '' : 'hidden'}" ${writable ? '' : 'disabled'}>
               <option value="">اختر فئة...</option>
               ${categoryOptions}
             </select>
-            <select class="f-target-product ${targetType === 'product' ? '' : 'hidden'}">
+            <select class="f-target-product ${targetType === 'product' ? '' : 'hidden'}" ${writable ? '' : 'disabled'}>
               <option value="">اختر منتج...</option>
               ${productOptions}
             </select>
           </div>
         </td>
-        <td><input class="f-target" type="number" min="0" value="${target}"></td>
+        <td><input class="f-target" type="number" min="0" value="${target}" ${writable ? '' : 'disabled'}></td>
         <td>
           <span class="badge ${target > 0 && soldThisMonth >= target ? 'active' : 'role-sub'}">${soldThisMonth} / ${target || '—'}</span>
           <div class="progress-bar"><div class="progress-bar-fill" style="width:${pct}%"></div></div>
           <div class="muted" style="margin-top:4px;">${escapeAttr(targetTypeLabel(t))}</div>
         </td>
-        <td class="actions"><button class="save-btn save-target-btn">حفظ</button></td>
+        ${writable ? '<td class="actions"><button class="save-btn save-target-btn">حفظ</button></td>' : ''}
       </tr>`;
     });
     html += '</tbody></table>';
@@ -1034,6 +1258,8 @@
         productSelect.classList.toggle('hidden', typeSelect.value !== 'product');
       });
     });
+
+    if (!writable) return;
 
     wrap.querySelectorAll('.save-target-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
@@ -1083,8 +1309,6 @@
 
     resultWrap.innerHTML = '<p class="muted">جاري البحث...</p>';
 
-    // استعلام مباشر لكل مبيعات الشخص ده من قاعدة البيانات (من غير أي حد أقصى)
-    // عشان الشهور والأيام القديمة تفضل تظهر بدقة حتى لو عدد المبيعات الكلي كبر جدًا.
     let subSalesSnap;
     try {
       subSalesSnap = await getDocs(query(collection(db, 'sales'), where('subEmail', '==', empId)));
