@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MAGIC — الحضور والانصراف</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --primary: #1a2a4a;
+    --primary-2: #24365f;
+    --accent: #ff8a3d;
+    --bg: #f4f6fa;
+    --card: #ffffff;
+    --text: #1e2635;
+    --muted: #8a93a6;
+    --border: #e9edf3;
+    --danger: #e0524b;
+    --success: #1fa971;
+    --shadow: 0 4px 18px rgba(23, 35, 66, 0.07);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'Cairo', 'Segoe UI', Tahoma, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+  header {
+    background: linear-gradient(125deg, var(--primary), var(--primary-2));
+    color: #fff;
+    padding: 18px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  header h1 { margin: 0; font-size: 18px; font-weight: 800; }
+  #signOutBtn {
+    background: transparent;
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.4);
+    padding: 7px 16px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 13px;
+    font-family: inherit;
+    font-weight: 600;
+  }
+  #loginScreen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 92vh;
+    padding: 20px;
+    text-align: center;
+  }
+  #loginScreen h2 { margin-bottom: 8px; font-size: 24px; font-weight: 800; color: var(--primary); }
+  #loginScreen p { color: var(--muted); margin-bottom: 24px; font-size: 14px; }
+  #googleSignInBtn {
+    background: #fff;
+    border: 1px solid var(--border);
+    padding: 13px 26px;
+    border-radius: 12px;
+    font-size: 15px;
+    font-family: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: var(--shadow);
+  }
+  #googleSignInBtn img { width: 20px; height: 20px; }
+  .error-msg { color: var(--danger); margin-top: 16px; font-size: 14px; }
+  .hidden { display: none !important; }
+
+  main { max-width: 520px; margin: 0 auto; padding: 24px 18px 40px; }
+
+  .status-card {
+    background: var(--card);
+    border-radius: 18px;
+    padding: 26px;
+    box-shadow: var(--shadow);
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  .status-card .name { font-size: 17px; font-weight: 800; color: var(--primary); margin-bottom: 4px; }
+  .status-card .email { font-size: 12.5px; color: var(--muted); margin-bottom: 18px; }
+  .status-pill {
+    display: inline-block;
+    padding: 8px 20px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 800;
+    margin-bottom: 22px;
+  }
+  .status-pill.in { background: #eafaf1; color: var(--success); }
+  .status-pill.out { background: #fdedec; color: var(--danger); }
+  .btn-row { display: flex; gap: 12px; }
+  .attend-btn {
+    flex: 1;
+    padding: 18px 10px;
+    border-radius: 14px;
+    border: none;
+    font-size: 15px;
+    font-weight: 800;
+    font-family: inherit;
+    cursor: pointer;
+    color: #fff;
+    transition: 0.15s;
+  }
+  .attend-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .attend-btn.check-in { background: var(--success); }
+  .attend-btn.check-in:hover:not(:disabled) { background: #17875f; }
+  .attend-btn.check-out { background: var(--danger); }
+  .attend-btn.check-out:hover:not(:disabled) { background: #c8443d; }
+  #attendMsg { margin-top: 14px; font-size: 13.5px; min-height: 18px; }
+
+  .history-card {
+    background: var(--card);
+    border-radius: 18px;
+    padding: 20px;
+    box-shadow: var(--shadow);
+  }
+  .history-card h3 { margin: 0 0 12px; font-size: 15px; color: var(--primary); }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 9px 6px; text-align: right; border-bottom: 1px solid var(--border); font-size: 13px; }
+  th { color: var(--muted); font-weight: 700; }
+  .row-badge { padding: 3px 10px; border-radius: 10px; font-size: 11.5px; font-weight: 700; }
+  .row-badge.in { background: #eafaf1; color: var(--success); }
+  .row-badge.out { background: #fdedec; color: var(--danger); }
+  .muted { color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+
+<div id="loginScreen">
+  <h2>الحضور والانصراف</h2>
+  <p>سجّل الدخول بحساب جوجل الخاص بك</p>
+  <button id="googleSignInBtn">
+    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google">
+    تسجيل الدخول بجوجل
+  </button>
+  <p id="loginError" class="error-msg" style="display:none;"></p>
+</div>
+
+<div id="appScreen" class="hidden">
+  <header>
+    <h1>🕘 الحضور والانصراف</h1>
+    <button id="signOutBtn">تسجيل الخروج</button>
+  </header>
+  <main>
+    <div class="status-card">
+      <div class="name" id="empNameLabel"></div>
+      <div class="email" id="empEmailLabel"></div>
+      <span id="statusPill" class="status-pill out">خارج العمل</span>
+      <div class="btn-row">
+        <button class="attend-btn check-in" id="checkInBtn">✅ تسجيل حضور</button>
+        <button class="attend-btn check-out" id="checkOutBtn">🚪 تسجيل انصراف</button>
+      </div>
+      <p id="attendMsg" class="muted"></p>
+    </div>
+
+    <div class="history-card">
+      <h3>سجلّك اليوم</h3>
+      <div id="todayHistory"><p class="muted">جاري التحميل...</p></div>
+    </div>
+  </main>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+  import {
+    getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
+  } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+  import {
+    getFirestore, doc, getDoc, collection, addDoc, query, where, orderBy, onSnapshot
+  } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAJo6uPyjzWB0KexX9LiIx-8SGPQzrSOEg",
+    authDomain: "magic-price-list.firebaseapp.com",
+    projectId: "magic-price-list",
+    storageBucket: "magic-price-list.firebasestorage.app",
+    messagingSenderId: "950313056936",
+    appId: "1:950313056936:web:a887ff76ca16094bf9e09d"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+  const provider = new GoogleAuthProvider();
+
+  const loginScreen = document.getElementById('loginScreen');
+  const appScreen = document.getElementById('appScreen');
+  const loginError = document.getElementById('loginError');
+  const statusPill = document.getElementById('statusPill');
+  const checkInBtn = document.getElementById('checkInBtn');
+  const checkOutBtn = document.getElementById('checkOutBtn');
+  const attendMsg = document.getElementById('attendMsg');
+  const todayHistory = document.getElementById('todayHistory');
+
+  let currentUserEmail = '';
+  let currentUserName = '';
+  let myRecordsUnsub = null;
+  let lastAction = null; // 'in' | 'out' | null
+
+  function escapeHtml(str) {
+    const d = document.createElement('div');
+    d.textContent = String(str ?? '');
+    return d.innerHTML;
+  }
+
+  function showError(msg) {
+    loginError.textContent = msg;
+    loginError.style.display = 'block';
+  }
+
+  document.getElementById('googleSignInBtn').addEventListener('click', async () => {
+    loginError.style.display = 'none';
+    try {
+      await signInWithPopup(auth, provider);
+    } catch (e) {
+      showError('تعذر تسجيل الدخول. حاول مرة أخرى.');
+    }
+  });
+
+  document.getElementById('signOutBtn').addEventListener('click', async () => {
+    if (myRecordsUnsub) myRecordsUnsub();
+    await signOut(auth);
+  });
+
+  function updateStatusUI() {
+    const isIn = lastAction === 'in';
+    statusPill.textContent = isIn ? 'في العمل الآن' : 'خارج العمل';
+    statusPill.className = 'status-pill ' + (isIn ? 'in' : 'out');
+    checkInBtn.disabled = isIn;
+    checkOutBtn.disabled = !isIn;
+  }
+
+  function todayKey(ts) {
+    const d = new Date(ts);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
+  function loadMyAttendance() {
+    const q = query(collection(db, 'attendance'), where('email', '==', currentUserEmail), orderBy('timestamp', 'desc'));
+    myRecordsUnsub = onSnapshot(q, snap => {
+      const all = snap.docs.map(d => d.data());
+      lastAction = all.length ? all[0].action : null;
+      updateStatusUI();
+
+      const today = todayKey(Date.now());
+      const todays = all.filter(r => todayKey(r.timestamp) === today);
+      if (!todays.length) {
+        todayHistory.innerHTML = '<p class="muted">لسه معملتش تسجيل النهاردة.</p>';
+        return;
+      }
+      let html = '<table><thead><tr><th>الحدث</th><th>الوقت</th></tr></thead><tbody>';
+      todays.forEach(r => {
+        const isIn = r.action === 'in';
+        html += `<tr><td><span class="row-badge ${isIn ? 'in' : 'out'}">${isIn ? 'حضور' : 'انصراف'}</span></td><td>${new Date(r.timestamp).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}</td></tr>`;
+      });
+      html += '</tbody></table>';
+      todayHistory.innerHTML = html;
+    }, () => {
+      todayHistory.innerHTML = '<p class="muted">حدث خطأ أثناء تحميل السجل.</p>';
+    });
+  }
+
+  async function recordAttendance(action) {
+    attendMsg.textContent = '';
+    try {
+      await addDoc(collection(db, 'attendance'), {
+        email: currentUserEmail,
+        name: currentUserName,
+        action,
+        timestamp: Date.now()
+      });
+      attendMsg.textContent = action === 'in' ? 'تم تسجيل الحضور بنجاح ✅' : 'تم تسجيل الانصراف بنجاح 🚪';
+      attendMsg.style.color = '#1fa971';
+    } catch (e) {
+      attendMsg.textContent = 'تعذر تسجيل العملية، حاول مرة أخرى.';
+      attendMsg.style.color = '#e0524b';
+    }
+    setTimeout(() => { attendMsg.textContent = ''; }, 3000);
+  }
+
+  checkInBtn.addEventListener('click', () => recordAttendance('in'));
+  checkOutBtn.addEventListener('click', () => recordAttendance('out'));
+
+  onAuthStateChanged(auth, async user => {
+    if (!user) {
+      appScreen.classList.add('hidden');
+      loginScreen.classList.remove('hidden');
+      if (myRecordsUnsub) { myRecordsUnsub(); myRecordsUnsub = null; }
+      return;
+    }
+    const email = user.email;
+    let empSnap;
+    try {
+      empSnap = await getDoc(doc(db, 'employees', email));
+    } catch (e) {
+      showError('حدث خطأ أثناء التحقق من صلاحية حسابك.');
+      await signOut(auth);
+      return;
+    }
+    if (!empSnap.exists() || empSnap.data().active !== true || empSnap.data().role !== 'attendance') {
+      showError('هذا الحساب مش مسجل كحساب "حضور وانصراف"، أو غير مفعّل. تواصل مع الإدارة.');
+      await signOut(auth);
+      return;
+    }
+    const empData = empSnap.data();
+    currentUserEmail = email;
+    currentUserName = empData.name || user.displayName || email;
+    document.getElementById('empNameLabel').textContent = currentUserName;
+    document.getElementById('empEmailLabel').textContent = email;
+    loginScreen.classList.add('hidden');
+    appScreen.classList.remove('hidden');
+    loadMyAttendance();
+  });
+</script>
+</body>
+</html>
