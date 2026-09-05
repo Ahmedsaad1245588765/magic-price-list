@@ -451,9 +451,56 @@
     </div>
 
     <div class="tab-content" id="tab-attendance">
+      <div class="card" id="attendanceSettingsCard">
+        <h2>⚙️ إعدادات الحضور والانصراف (GPS + QR)</h2>
+        <p class="muted">تحديد موقع الشركة والنطاق المسموح به، وتوليد QR Code لطباعته ووضعه داخل الشركة.</p>
+        <div class="form-row">
+          <input type="number" step="0.000001" id="companyLat" placeholder="خط العرض (Latitude)">
+          <input type="number" step="0.000001" id="companyLng" placeholder="خط الطول (Longitude)">
+          <input type="number" id="companyRadius" placeholder="النطاق المسموح (متر)">
+        </div>
+        <div class="form-row" style="align-items:center;">
+          <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;flex:1;min-width:220px;">
+            <input type="checkbox" id="allowMultiplePerDay" style="width:auto;">
+            السماح بأكثر من حضور/انصراف لنفس الموظف في نفس اليوم
+          </label>
+          <button class="primary" id="saveAttendanceSettingsBtn">حفظ الإعدادات</button>
+        </div>
+        <p id="attendanceSettingsMsg" class="muted"></p>
+
+        <div style="margin-top:18px; padding-top:16px; border-top:1px dashed var(--border);">
+          <strong style="font-size:14px;">QR Code الخاص بالشركة</strong>
+          <p class="muted" style="margin:4px 0 12px;">اكتب أي كود أو رقم تختاره (مثلاً رقم سري تحفظه)، والنظام هيولّدلك QR بيه. اطبع الصورة وحطها داخل الشركة.</p>
+          <div class="form-row">
+            <input type="text" id="qrCodeInput" placeholder="اكتب الكود أو الرقم هنا...">
+            <button class="primary" id="saveQrCodeBtn">حفظ وتوليد QR</button>
+            <button class="role-btn" id="downloadQrBtn" disabled>تحميل الصورة</button>
+          </div>
+          <div id="qrDisplayWrap" style="margin-top:14px; display:flex; justify-content:center;"><p class="muted">جاري التحميل...</p></div>
+          <p id="qrMsg" class="muted"></p>
+        </div>
+      </div>
+
+      <div class="card" id="shiftHoursCard">
+        <h2>🕗 مواعيد العمل الرسمية</h2>
+        <p class="muted">حدد ميعاد الحضور والانصراف الرسمي لكل موظف "حضور وانصراف"، عشان التقرير الشهري يحسب التأخير والانصراف المبكر تلقائيًا.</p>
+        <div id="shiftHoursTable"><p class="muted">جاري التحميل...</p></div>
+      </div>
+
       <div class="card">
-        <h2>🕘 سجل الحضور والانصراف <span id="attendanceCount" class="badge role-main">0</span></h2>
-        <p class="muted">سجل تلقائي لكل مرة عضو حضور وانصراف يسجل دخوله أو خروجه من صفحة الحضور.</p>
+        <h2>📅 تقرير حضور شهري لعضو معيّن</h2>
+        <p class="muted">اختر العضو وشهر معيّن عشان تشوف كل يوم جه الساعة كام ومشي الساعة كام.</p>
+        <div class="form-row">
+          <select id="attendanceReportEmpSelect"><option value="">اختر عضو الفريق...</option></select>
+          <input type="month" id="attendanceReportMonth">
+          <button class="primary" id="attendanceReportBtn">عرض التقرير</button>
+        </div>
+        <div id="attendanceReportResult"></div>
+      </div>
+
+      <div class="card">
+        <h2>🕘 سجل حضور اليوم <span id="attendanceCount" class="badge role-main">0</span></h2>
+        <p class="muted">كل عمليات الحضور والانصراف اللي تمت النهاردة، لحظة بلحظة.</p>
         <div id="attendanceTable"><p class="muted">جاري التحميل...</p></div>
       </div>
     </div>
@@ -481,6 +528,7 @@
   </div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
   import {
@@ -611,6 +659,7 @@
     loadAccessLog();
     loadSales();
     loadAttendance();
+    loadAttendanceSettingsAndQr();
   });
 
   function escapeAttr(str) {
@@ -672,6 +721,7 @@
     }
     document.getElementById('addProductCard').classList.toggle('hidden', !canWrite('products'));
     document.getElementById('addEmpCard').classList.toggle('hidden', !canWrite('team'));
+    document.getElementById('shiftHoursCard')?.classList.toggle('hidden', !isSuperUser);
   }
 
   function goToTargetTab(highlightEmpId) {
@@ -822,6 +872,8 @@
         wrap.innerHTML = '<p class="muted">لا يوجد أعضاء مضافون بعد.</p>';
         renderTargetsTab();
         renderLevelEmpOptions();
+        renderAttendanceReportEmpOptions();
+        renderShiftHoursTable();
         return;
       }
       let html = '<table><thead><tr><th>الاسم</th><th>الإيميل</th><th>الصلاحية</th><th>الحالة</th><th></th></tr></thead><tbody>';
@@ -894,6 +946,8 @@
       });
       renderTargetsTab();
       renderLevelEmpOptions();
+      renderAttendanceReportEmpOptions();
+      renderShiftHoursTable();
     });
   }
 
@@ -1051,20 +1105,25 @@
     });
   }
 
-  // ---------- سجل الحضور والانصراف ----------
+  // ---------- سجل حضور اليوم بس (تقليل القراءات بدل تحميل كل السجل التاريخي) ----------
+  function todayDateStr() {
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
   function loadAttendance() {
-    const q = query(collection(db, 'attendance'), orderBy('timestamp', 'desc'), limit(500));
+    const q = query(collection(db, 'attendance'), where('date', '==', todayDateStr()), orderBy('timestamp', 'desc'));
     onSnapshot(q, snap => {
       const wrap = document.getElementById('attendanceTable');
       document.getElementById('attendanceCount').textContent = snap.size;
       if (snap.empty) {
-        wrap.innerHTML = '<p class="muted">لا يوجد سجل حضور بعد.</p>';
+        wrap.innerHTML = '<p class="muted">لا يوجد سجل حضور النهاردة لحد دلوقتي.</p>';
         return;
       }
       let html = '<table><thead><tr><th>الاسم</th><th>الإيميل</th><th>الحدث</th><th>الوقت</th></tr></thead><tbody>';
       snap.forEach(d => {
         const e = d.data();
-        const dt = e.timestamp ? new Date(e.timestamp).toLocaleString('ar-EG') : '';
+        const dt = e.timestamp ? new Date(e.timestamp).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }) : '';
         const isIn = e.action === 'in';
         html += `<tr>
           <td>${escapeAttr(e.name || '—')}</td>
@@ -1077,6 +1136,233 @@
       wrap.innerHTML = html;
     }, () => {
       document.getElementById('attendanceTable').innerHTML = '<p class="muted">ماعندكش صلاحية قراءة سجل الحضور.</p>';
+    });
+  }
+
+  // ---------- تقرير حضور شهري لعضو معيّن (بحث عند الطلب فقط، مش استماع دائم) ----------
+  function renderAttendanceReportEmpOptions() {
+    const select = document.getElementById('attendanceReportEmpSelect');
+    if (!select) return;
+    const current = select.value;
+    select.innerHTML = '<option value="">اختر عضو الفريق...</option>' +
+      allEmployees.map(({ id, e }) => `<option value="${escapeAttr(id)}">${escapeAttr(e.name || id)}</option>`).join('');
+    if (current) select.value = current;
+  }
+
+  document.getElementById('attendanceReportBtn')?.addEventListener('click', async () => {
+    const empId = document.getElementById('attendanceReportEmpSelect').value;
+    const monthVal = document.getElementById('attendanceReportMonth').value;
+    const resultWrap = document.getElementById('attendanceReportResult');
+    if (!empId) { resultWrap.innerHTML = '<p class="muted">اختر عضو الفريق الأول.</p>'; return; }
+    if (!monthVal) { resultWrap.innerHTML = '<p class="muted">اختر الشهر الأول.</p>'; return; }
+
+    resultWrap.innerHTML = '<p class="muted">جاري البحث...</p>';
+    const monthStart = monthVal + '-01';
+    const [y, m] = monthVal.split('-').map(Number);
+    const lastDay = new Date(y, m, 0).getDate();
+    const monthEnd = monthVal + '-' + String(lastDay).padStart(2, '0');
+
+    let snap;
+    try {
+      snap = await getDocs(query(
+        collection(db, 'attendance'),
+        where('email', '==', empId),
+        where('date', '>=', monthStart),
+        where('date', '<=', monthEnd),
+        orderBy('date', 'asc'),
+        orderBy('timestamp', 'asc')
+      ));
+    } catch (e) {
+      resultWrap.innerHTML = '<p class="error-msg">حدث خطأ أثناء البحث. لو دي أول مرة، Firestore ممكن يطلب إنشاء index تلقائي (هيظهر رابط في Console المتصفح، دوس عليه وسيبه يتعمل).</p>';
+      return;
+    }
+
+    if (snap.empty) {
+      resultWrap.innerHTML = '<p class="muted">مفيش سجل حضور للعضو ده في الشهر ده.</p>';
+      return;
+    }
+
+    // تجميع السجلات في كل يوم: أول حضور وآخر انصراف
+    const byDay = {};
+    snap.forEach(d => {
+      const r = d.data();
+      if (!byDay[r.date]) byDay[r.date] = { ins: [], outs: [] };
+      if (r.action === 'in') byDay[r.date].ins.push(r.timestamp);
+      else byDay[r.date].outs.push(r.timestamp);
+    });
+
+    const emp = allEmployees.find(x => x.id === empId);
+    const shiftStart = emp && emp.e.shiftStart; // "HH:MM"
+    const shiftEnd = emp && emp.e.shiftEnd;
+
+    // بيحول وقت فعلي (timestamp) لعدد دقايق من نص الليل، عشان يتقارن بميعاد العمل الرسمي "HH:MM"
+    function minutesOfDay(ts) {
+      const d = new Date(ts);
+      return d.getHours() * 60 + d.getMinutes();
+    }
+    function shiftToMinutes(hhmm) {
+      const [h, m] = hhmm.split(':').map(Number);
+      return h * 60 + m;
+    }
+    function lateBadge(diffMin) {
+      if (diffMin <= 0) return '<span class="badge active">في الميعاد</span>';
+      return `<span class="badge inactive">متأخر ${diffMin} د</span>`;
+    }
+    function earlyBadge(diffMin) {
+      if (diffMin <= 0) return '<span class="badge active">في الميعاد</span>';
+      return `<span class="badge inactive">انصراف مبكر ${diffMin} د</span>`;
+    }
+
+    const showShiftCols = !!(shiftStart && shiftEnd);
+    const days = Object.keys(byDay).sort();
+    let html = `<table><thead><tr><th>التاريخ</th><th>أول حضور</th><th>آخر انصراف</th>${showShiftCols ? '<th>التأخير</th><th>الانصراف المبكر</th>' : ''}</tr></thead><tbody>`;
+    days.forEach(day => {
+      const ins = byDay[day].ins.sort((a, b) => a - b);
+      const outs = byDay[day].outs.sort((a, b) => a - b);
+      const firstIn = ins.length ? new Date(ins[0]).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }) : '—';
+      const lastOut = outs.length ? new Date(outs[outs.length - 1]).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }) : '—';
+      let lateCell = '—', earlyCell = '—';
+      if (showShiftCols) {
+        lateCell = ins.length ? lateBadge(Math.max(0, minutesOfDay(ins[0]) - shiftToMinutes(shiftStart))) : '<span class="muted">—</span>';
+        earlyCell = outs.length ? earlyBadge(Math.max(0, shiftToMinutes(shiftEnd) - minutesOfDay(outs[outs.length - 1]))) : '<span class="muted">—</span>';
+      }
+      html += `<tr><td>${day}</td><td>${firstIn}</td><td>${lastOut}</td>${showShiftCols ? `<td>${lateCell}</td><td>${earlyCell}</td>` : ''}</tr>`;
+    });
+    html += '</tbody></table>';
+    if (!showShiftCols) {
+      html = '<p class="muted" style="margin-bottom:8px;">لسه معملتش ميعاد عمل رسمي للعضو ده (من قسم "مواعيد العمل الرسمية" فوق)، فمش هيتحسب تأخير أو انصراف مبكر.</p>' + html;
+    }
+    resultWrap.innerHTML = html;
+  });
+
+  // ---------- إعدادات الحضور (GPS + QR) — Super بس ----------
+  async function sha256Hex(text) {
+    const data = new TextEncoder().encode(text);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  let qrGenerator = null;
+
+  function renderQrFromSecret(secret) {
+    const wrap = document.getElementById('qrDisplayWrap');
+    wrap.innerHTML = '<div id="qrCodeBox"></div>';
+    qrGenerator = new QRCode(document.getElementById('qrCodeBox'), {
+      text: secret, width: 220, height: 220
+    });
+    setTimeout(() => {
+      const img = wrap.querySelector('img') || wrap.querySelector('canvas');
+      const downloadBtn = document.getElementById('downloadQrBtn');
+      if (img) {
+        downloadBtn.disabled = false;
+        downloadBtn.onclick = () => {
+          const dataUrl = img.tagName === 'CANVAS' ? img.toDataURL('image/png') : img.src;
+          const a = document.createElement('a');
+          a.href = dataUrl;
+          a.download = 'magic-attendance-qr.png';
+          a.click();
+        };
+      }
+    }, 150);
+  }
+
+  async function loadAttendanceSettingsAndQr() {
+    if (!document.getElementById('attendanceSettingsCard')) return;
+    document.getElementById('attendanceSettingsCard').classList.toggle('hidden', !isSuperUser);
+    if (!isSuperUser) return;
+
+    try {
+      const locSnap = await getDoc(doc(db, 'settings', 'location'));
+      if (locSnap.exists()) {
+        const l = locSnap.data();
+        document.getElementById('companyLat').value = l.lat ?? '';
+        document.getElementById('companyLng').value = l.lng ?? '';
+        document.getElementById('companyRadius').value = l.radiusMeters ?? '';
+        document.getElementById('allowMultiplePerDay').checked = !!l.allowMultiplePerDay;
+      }
+    } catch (e) { /* لسه معملهاش */ }
+
+    try {
+      const qrSnap = await getDoc(doc(db, 'settings', 'qrPrivate'));
+      if (qrSnap.exists() && qrSnap.data().secret) {
+        document.getElementById('qrCodeInput').value = qrSnap.data().secret;
+        renderQrFromSecret(qrSnap.data().secret);
+      } else {
+        document.getElementById('qrDisplayWrap').innerHTML = '<p class="muted">مفيش كود اتحفظ لسه، اكتب كود ودوس "حفظ وتوليد QR".</p>';
+      }
+    } catch (e) {
+      document.getElementById('qrDisplayWrap').innerHTML = '<p class="muted">مفيش كود اتحفظ لسه، اكتب كود ودوس "حفظ وتوليد QR".</p>';
+    }
+  }
+
+  document.getElementById('saveAttendanceSettingsBtn')?.addEventListener('click', async () => {
+    const msg = document.getElementById('attendanceSettingsMsg');
+    const lat = parseFloat(document.getElementById('companyLat').value);
+    const lng = parseFloat(document.getElementById('companyLng').value);
+    const radiusMeters = parseInt(document.getElementById('companyRadius').value);
+    const allowMultiplePerDay = document.getElementById('allowMultiplePerDay').checked;
+    if (isNaN(lat) || isNaN(lng) || isNaN(radiusMeters)) {
+      msg.textContent = 'من فضلك املأ خط العرض وخط الطول والنطاق بأرقام صحيحة.';
+      msg.style.color = '#c0392b';
+      return;
+    }
+    await setDoc(doc(db, 'settings', 'location'), { lat, lng, radiusMeters, allowMultiplePerDay, updatedAt: Date.now() }, { merge: true });
+    await logActivity('تم تحديث إعدادات موقع الحضور والانصراف');
+    msg.textContent = 'تم حفظ الإعدادات بنجاح.';
+    msg.style.color = '#1e8449';
+    setTimeout(() => msg.textContent = '', 2500);
+  });
+
+  document.getElementById('saveQrCodeBtn')?.addEventListener('click', async () => {
+    const msg = document.getElementById('qrMsg');
+    const code = document.getElementById('qrCodeInput').value.trim();
+    if (!code) {
+      msg.textContent = 'من فضلك اكتب كود أو رقم الأول.';
+      msg.style.color = '#c0392b';
+      return;
+    }
+    if (!confirm('حفظ الكود ده هيلغي أي QR قديم فورًا (مينفعش يتسجل بيه حضور تاني). متأكد؟')) return;
+    const secretHash = await sha256Hex(code);
+    await setDoc(doc(db, 'settings', 'qrPrivate'), { secret: code, updatedAt: Date.now() });
+    await setDoc(doc(db, 'settings', 'qrPublic'), { secretHash, updatedAt: Date.now() });
+    await logActivity('تم تحديث كود QR الحضور والانصراف');
+    renderQrFromSecret(code);
+    msg.textContent = 'تم حفظ الكود وتوليد QR جديد، اطبعه دلوقتي وحطه بدل القديم.';
+    msg.style.color = '#1e8449';
+    setTimeout(() => msg.textContent = '', 4000);
+  });
+
+  // ---------- مواعيد العمل الرسمية لكل موظف حضور وانصراف ----------
+  function renderShiftHoursTable() {
+    const wrap = document.getElementById('shiftHoursTable');
+    if (!wrap) return;
+    if (!isSuperUser) { wrap.innerHTML = '<p class="muted">Super بس يقدر يحدد المواعيد الرسمية.</p>'; return; }
+    const attendanceEmps = allEmployees.filter(({ e }) => e.role === 'attendance');
+    if (!attendanceEmps.length) {
+      wrap.innerHTML = '<p class="muted">مفيش أعضاء بدور "حضور وانصراف" لحد دلوقتي.</p>';
+      return;
+    }
+    let html = '<table><thead><tr><th>الاسم</th><th>ميعاد الحضور</th><th>ميعاد الانصراف</th><th></th></tr></thead><tbody>';
+    attendanceEmps.forEach(({ id, e }) => {
+      html += `<tr data-id="${id}">
+        <td>${escapeAttr(e.name || id)}</td>
+        <td><input type="time" class="f-shift-start" value="${escapeAttr(e.shiftStart || '')}"></td>
+        <td><input type="time" class="f-shift-end" value="${escapeAttr(e.shiftEnd || '')}"></td>
+        <td class="actions"><button class="save-btn save-shift-btn">حفظ</button></td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+    wrap.innerHTML = html;
+
+    wrap.querySelectorAll('.save-shift-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const row = btn.closest('tr');
+        const id = row.dataset.id;
+        const shiftStart = row.querySelector('.f-shift-start').value;
+        const shiftEnd = row.querySelector('.f-shift-end').value;
+        await updateDoc(doc(db, 'employees', id), { shiftStart, shiftEnd });
+        await logActivity(`تم تحديث مواعيد العمل الرسمية لـ ${id} (${shiftStart || '—'} - ${shiftEnd || '—'})`);
+      });
     });
   }
 
