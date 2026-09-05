@@ -120,7 +120,6 @@
   .attend-btn.check-in:hover:not(:disabled) { background: #17875f; }
   .attend-btn.check-out { background: var(--danger); }
   .attend-btn.check-out:hover:not(:disabled) { background: #c8443d; }
-  #attendMsg { margin-top: 14px; font-size: 13.5px; min-height: 18px; }
 
   .history-card {
     background: var(--card);
@@ -136,6 +135,59 @@
   .row-badge.in { background: #eafaf1; color: var(--success); }
   .row-badge.out { background: #fdedec; color: var(--danger); }
   .muted { color: var(--muted); font-size: 13px; }
+
+  /* ---------- بوب أب خطوات التسجيل ---------- */
+  #flowModal {
+    position: fixed; inset: 0; z-index: 1000;
+    background: rgba(15, 25, 45, 0.55);
+    display: flex; align-items: center; justify-content: center;
+    padding: 18px;
+  }
+  #flowBox {
+    width: min(420px, 100%);
+    max-height: 90vh;
+    overflow-y: auto;
+    background: #fff;
+    border-radius: 18px;
+    padding: 22px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+    text-align: center;
+  }
+  #flowBox h3 { margin: 0 0 18px; font-size: 17px; color: var(--primary); }
+  .flow-step {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: #f4f6fa;
+    margin-bottom: 10px;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--muted);
+    text-align: right;
+  }
+  .flow-step .icon { font-size: 18px; flex: 0 0 auto; }
+  .flow-step.active { background: #fff3ea; color: var(--accent); }
+  .flow-step.done { background: #eafaf1; color: var(--success); }
+  .flow-step.failed { background: #fdedec; color: var(--danger); }
+  #cameraWrap { display: none; margin: 14px 0; border-radius: 14px; overflow: hidden; position: relative; background: #000; }
+  #cameraWrap.active { display: block; }
+  #cameraVideo { width: 100%; display: block; }
+  #flowResultMsg { font-size: 13.5px; margin: 10px 0 4px; min-height: 18px; }
+  #flowCancelBtn {
+    margin-top: 12px;
+    background: #eef2f5;
+    color: var(--primary);
+    border: none;
+    padding: 10px 18px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13.5px;
+    font-weight: 700;
+    width: 100%;
+  }
 </style>
 </head>
 <body>
@@ -159,12 +211,12 @@
     <div class="status-card">
       <div class="name" id="empNameLabel"></div>
       <div class="email" id="empEmailLabel"></div>
+      <div class="email" id="shiftHoursLabel"></div>
       <span id="statusPill" class="status-pill out">خارج العمل</span>
       <div class="btn-row">
         <button class="attend-btn check-in" id="checkInBtn">✅ تسجيل حضور</button>
         <button class="attend-btn check-out" id="checkOutBtn">🚪 تسجيل انصراف</button>
       </div>
-      <p id="attendMsg" class="muted"></p>
     </div>
 
     <div class="history-card">
@@ -174,6 +226,20 @@
   </main>
 </div>
 
+<div id="flowModal" class="hidden">
+  <div id="flowBox">
+    <h3 id="flowTitle">تسجيل الحضور</h3>
+    <div class="flow-step" id="stepLocation"><span class="icon">📍</span><span>التحقق من الموقع</span></div>
+    <div class="flow-step" id="stepQr"><span class="icon">📷</span><span>Scan QR Code</span></div>
+    <div class="flow-step" id="stepDone"><span class="icon">✅</span><span id="stepDoneLabel">تم التسجيل بنجاح</span></div>
+    <div id="cameraWrap"><video id="cameraVideo" playsinline autoplay muted></video></div>
+    <canvas id="scanCanvas" class="hidden"></canvas>
+    <p id="flowResultMsg" class="muted"></p>
+    <button id="flowCancelBtn">إلغاء</button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsqr/1.4.0/jsQR.js"></script>
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
   import {
@@ -203,13 +269,29 @@
   const statusPill = document.getElementById('statusPill');
   const checkInBtn = document.getElementById('checkInBtn');
   const checkOutBtn = document.getElementById('checkOutBtn');
-  const attendMsg = document.getElementById('attendMsg');
   const todayHistory = document.getElementById('todayHistory');
+
+  const flowModal = document.getElementById('flowModal');
+  const flowTitle = document.getElementById('flowTitle');
+  const stepLocation = document.getElementById('stepLocation');
+  const stepQr = document.getElementById('stepQr');
+  const stepDone = document.getElementById('stepDone');
+  const stepDoneLabel = document.getElementById('stepDoneLabel');
+  const cameraWrap = document.getElementById('cameraWrap');
+  const cameraVideo = document.getElementById('cameraVideo');
+  const scanCanvas = document.getElementById('scanCanvas');
+  const flowResultMsg = document.getElementById('flowResultMsg');
+  const flowCancelBtn = document.getElementById('flowCancelBtn');
 
   let currentUserEmail = '';
   let currentUserName = '';
   let myRecordsUnsub = null;
   let lastAction = null; // 'in' | 'out' | null
+  let companySettings = null; // { lat, lng, radiusMeters, allowMultiplePerDay }
+  let qrExpectedHash = null;
+  let cameraStream = null;
+  let scanRafId = null;
+  let flowCancelled = false;
 
   function escapeHtml(str) {
     const d = document.createElement('div');
@@ -240,8 +322,13 @@
     const isIn = lastAction === 'in';
     statusPill.textContent = isIn ? 'في العمل الآن' : 'خارج العمل';
     statusPill.className = 'status-pill ' + (isIn ? 'in' : 'out');
-    checkInBtn.disabled = isIn;
-    checkOutBtn.disabled = !isIn;
+    if (companySettings && companySettings.allowMultiplePerDay) {
+      checkInBtn.disabled = false;
+      checkOutBtn.disabled = false;
+    } else {
+      checkInBtn.disabled = isIn;
+      checkOutBtn.disabled = !isIn;
+    }
   }
 
   function todayKey(ts) {
@@ -274,26 +361,194 @@
     });
   }
 
-  async function recordAttendance(action) {
-    attendMsg.textContent = '';
+  // ---------- حساب المسافة بين نقطتين (Haversine) بالمتر ----------
+  function distanceMeters(lat1, lng1, lat2, lng2) {
+    const R = 6371000;
+    const toRad = d => d * Math.PI / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLng = toRad(lng2 - lng1);
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }
+
+  async function sha256Hex(text) {
+    const data = new TextEncoder().encode(text);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  async function loadCompanySettings() {
+    try {
+      const locSnap = await getDoc(doc(db, 'settings', 'location'));
+      companySettings = locSnap.exists() ? locSnap.data() : null;
+    } catch (e) {
+      companySettings = null;
+    }
+    try {
+      const qrSnap = await getDoc(doc(db, 'settings', 'qrPublic'));
+      qrExpectedHash = qrSnap.exists() ? qrSnap.data().secretHash : null;
+    } catch (e) {
+      qrExpectedHash = null;
+    }
+    updateStatusUI();
+  }
+
+  function setStepState(stepEl, state) {
+    stepEl.classList.remove('active', 'done', 'failed');
+    if (state) stepEl.classList.add(state);
+  }
+
+  function resetFlowUI(actionLabel) {
+    flowTitle.textContent = actionLabel === 'in' ? 'تسجيل الحضور' : 'تسجيل الانصراف';
+    stepDoneLabel.textContent = actionLabel === 'in' ? 'تم تسجيل الحضور بنجاح' : 'تم تسجيل الانصراف بنجاح';
+    setStepState(stepLocation, null);
+    setStepState(stepQr, null);
+    setStepState(stepDone, null);
+    cameraWrap.classList.remove('active');
+    flowResultMsg.textContent = '';
+    flowCancelBtn.textContent = 'إلغاء';
+  }
+
+  function stopCamera() {
+    if (scanRafId) cancelAnimationFrame(scanRafId);
+    scanRafId = null;
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(t => t.stop());
+      cameraStream = null;
+    }
+    cameraWrap.classList.remove('active');
+  }
+
+  function closeFlow() {
+    flowCancelled = true;
+    stopCamera();
+    flowModal.classList.add('hidden');
+  }
+  flowCancelBtn.addEventListener('click', closeFlow);
+
+  function getLocationOnce() {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) { reject(new Error('nogeo')); return; }
+      navigator.geolocation.getCurrentPosition(
+        pos => resolve(pos.coords),
+        err => reject(err),
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+      );
+    });
+  }
+
+  async function scanQrFromCamera() {
+    cameraWrap.classList.add('active');
+    cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    cameraVideo.srcObject = cameraStream;
+    await cameraVideo.play();
+    const ctx = scanCanvas.getContext('2d');
+
+    return new Promise((resolve, reject) => {
+      function tick() {
+        if (flowCancelled) { reject(new Error('cancelled')); return; }
+        if (cameraVideo.readyState === cameraVideo.HAVE_ENOUGH_DATA) {
+          scanCanvas.width = cameraVideo.videoWidth;
+          scanCanvas.height = cameraVideo.videoHeight;
+          ctx.drawImage(cameraVideo, 0, 0, scanCanvas.width, scanCanvas.height);
+          const imageData = ctx.getImageData(0, 0, scanCanvas.width, scanCanvas.height);
+          const code = jsQR(imageData.data, imageData.width, imageData.height);
+          if (code && code.data) {
+            resolve(code.data);
+            return;
+          }
+        }
+        scanRafId = requestAnimationFrame(tick);
+      }
+      scanRafId = requestAnimationFrame(tick);
+    });
+  }
+
+  async function runAttendanceFlow(action) {
+    if (!companySettings || !companySettings.lat || !companySettings.lng || !companySettings.radiusMeters) {
+      alert('لسه الإدارة معملتش إعدادات الموقع الجغرافي، تواصل مع المسؤول.');
+      return;
+    }
+    if (!qrExpectedHash) {
+      alert('لسه الإدارة معملتش QR Code، تواصل مع المسؤول.');
+      return;
+    }
+
+    flowCancelled = false;
+    resetFlowUI(action);
+    flowModal.classList.remove('hidden');
+
+    // الخطوة 1: الموقع الجغرافي
+    setStepState(stepLocation, 'active');
+    let coords, dist;
+    try {
+      coords = await getLocationOnce();
+      dist = distanceMeters(coords.latitude, coords.longitude, companySettings.lat, companySettings.lng);
+      if (dist > companySettings.radiusMeters) {
+        setStepState(stepLocation, 'failed');
+        flowResultMsg.textContent = `أنت خارج نطاق الشركة (المسافة: ${Math.round(dist)} متر). اقترب أكتر وحاول تاني.`;
+        flowResultMsg.style.color = '#e0524b';
+        return;
+      }
+      setStepState(stepLocation, 'done');
+    } catch (e) {
+      if (flowCancelled) return;
+      setStepState(stepLocation, 'failed');
+      flowResultMsg.textContent = 'تعذر الوصول لموقعك. اسمح للمتصفح بالوصول لـ GPS وحاول تاني.';
+      flowResultMsg.style.color = '#e0524b';
+      return;
+    }
+
+    // الخطوة 2: مسح QR
+    setStepState(stepQr, 'active');
+    let scannedValue;
+    try {
+      scannedValue = await scanQrFromCamera();
+      stopCamera();
+    } catch (e) {
+      if (flowCancelled) return;
+      setStepState(stepQr, 'failed');
+      flowResultMsg.textContent = 'تعذر تشغيل الكاميرا. اسمح للمتصفح بالوصول للكاميرا وحاول تاني.';
+      flowResultMsg.style.color = '#e0524b';
+      return;
+    }
+
+    const scannedHash = await sha256Hex(scannedValue);
+    if (scannedHash !== qrExpectedHash) {
+      setStepState(stepQr, 'failed');
+      flowResultMsg.textContent = 'الـ QR ده مش صحيح أو مش خاص بالشركة.';
+      flowResultMsg.style.color = '#e0524b';
+      return;
+    }
+    setStepState(stepQr, 'done');
+
+    // الخطوة 3: تسجيل العملية في Firebase
+    setStepState(stepDone, 'active');
     try {
       await addDoc(collection(db, 'attendance'), {
         email: currentUserEmail,
         name: currentUserName,
         action,
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        date: todayKey(Date.now()),
+        qrValue: scannedValue,
+        location: { lat: coords.latitude, lng: coords.longitude },
+        distanceMeters: Math.round(dist)
       });
-      attendMsg.textContent = action === 'in' ? 'تم تسجيل الحضور بنجاح ✅' : 'تم تسجيل الانصراف بنجاح 🚪';
-      attendMsg.style.color = '#1fa971';
+      setStepState(stepDone, 'done');
+      flowResultMsg.textContent = '';
+      flowCancelBtn.textContent = 'تم ✓';
+      setTimeout(() => { if (!flowCancelled) flowModal.classList.add('hidden'); }, 1400);
     } catch (e) {
-      attendMsg.textContent = 'تعذر تسجيل العملية، حاول مرة أخرى.';
-      attendMsg.style.color = '#e0524b';
+      setStepState(stepDone, 'failed');
+      flowResultMsg.textContent = 'تعذر تسجيل العملية. حاول مرة أخرى.';
+      flowResultMsg.style.color = '#e0524b';
     }
-    setTimeout(() => { attendMsg.textContent = ''; }, 3000);
   }
 
-  checkInBtn.addEventListener('click', () => recordAttendance('in'));
-  checkOutBtn.addEventListener('click', () => recordAttendance('out'));
+  checkInBtn.addEventListener('click', () => runAttendanceFlow('in'));
+  checkOutBtn.addEventListener('click', () => runAttendanceFlow('out'));
 
   onAuthStateChanged(auth, async user => {
     if (!user) {
@@ -321,8 +576,12 @@
     currentUserName = empData.name || user.displayName || email;
     document.getElementById('empNameLabel').textContent = currentUserName;
     document.getElementById('empEmailLabel').textContent = email;
+    if (empData.shiftStart && empData.shiftEnd) {
+      document.getElementById('shiftHoursLabel').textContent = `ميعادك الرسمي: ${empData.shiftStart} — ${empData.shiftEnd}`;
+    }
     loginScreen.classList.add('hidden');
     appScreen.classList.remove('hidden');
+    await loadCompanySettings();
     loadMyAttendance();
   });
 </script>
