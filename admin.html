@@ -383,15 +383,16 @@
   #productsTable { overflow: visible; }
   #productsTable table { width: 100%; min-width: 0; table-layout: fixed; }
   #productsTable th, #productsTable td { padding: 4px 3px; white-space: nowrap; }
-  #productsTable th:nth-child(1), #productsTable td:nth-child(1) { width: 31%; }
-  #productsTable th:nth-child(2), #productsTable td:nth-child(2) { width: 39%; }
-  #productsTable th:nth-child(3), #productsTable td:nth-child(3) { width: 17%; }
-  #productsTable th:nth-child(4), #productsTable td:nth-child(4) { width: 13%; }
-  #productsTable td input { width: 100%; min-width: 0; height: 28px; padding: 2px 4px; font-size: 11px; }
-  #productsTable td .f-model, #productsTable td .f-colors { overflow: hidden; text-overflow: ellipsis; }
-  #productsTable td .f-price { text-align: center; font-size: 10.5px; padding-left: 1px; padding-right: 1px; }
-  #productsTable .actions { white-space: normal; text-align: center; }
-  #productsTable .actions button { padding: 4px 4px; font-size: 10px; margin: 1px 0; }
+  /* الأعمدة الثلاثة تتوزع نسبيًا: الموديل أكبر لأنه قد يكون طويلًا */
+  #productsTable th:nth-child(1), #productsTable td:nth-child(1) { width: 38%; }
+  #productsTable th:nth-child(2), #productsTable td:nth-child(2) { width: 28%; }
+  #productsTable th:nth-child(3), #productsTable td:nth-child(3) { width: 14%; }
+  #productsTable th:nth-child(4), #productsTable td:nth-child(4) { width: 20%; }
+  #productsTable td input { width: 100%; min-width: 0; height: 29px; padding: 2px 5px; font-size: clamp(10.5px, 2.4vw, 12px); }
+  #productsTable td .f-model, #productsTable td .f-colors { overflow-x: auto; overflow-y: hidden; text-overflow: clip; }
+  #productsTable td .f-price { text-align: center; font-size: clamp(10px, 2.2vw, 11px); padding-left: 1px; padding-right: 1px; }
+  #productsTable .actions { white-space: nowrap; text-align: center; }
+  #productsTable .actions button { padding: 5px 7px; font-size: 11px; margin: 1px; min-width: 44px; }
   @media (max-width: 600px) {
     #productsTable { overflow: visible; }
     #productsTable table { display: table; width: 100%; min-width: 0; table-layout: fixed; }
@@ -400,8 +401,12 @@
     #productsTable tr { display: table-row; margin: 0; padding: 0; border: 0; background: transparent; }
     #productsTable th, #productsTable td { display: table-cell; width: auto; font-size: 10px; }
     #productsTable td::before { display: none; }
-    #productsTable td input { font-size: 10px; height: 26px; }
-    #productsTable .actions button { font-size: 9px; padding: 3px 3px; min-width: 0; }
+    #productsTable th:nth-child(1), #productsTable td:nth-child(1) { width: 38%; }
+    #productsTable th:nth-child(2), #productsTable td:nth-child(2) { width: 28%; }
+    #productsTable th:nth-child(3), #productsTable td:nth-child(3) { width: 14%; }
+    #productsTable th:nth-child(4), #productsTable td:nth-child(4) { width: 20%; }
+    #productsTable td input { font-size: 11px; height: 28px; }
+    #productsTable .actions button { font-size: 10.5px; padding: 4px 5px; min-width: 43px; }
   }
 
 </style>
