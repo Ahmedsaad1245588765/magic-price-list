@@ -352,6 +352,32 @@
     #chatWrap { height: 58vh; }
     .chat-bubble-row { max-width: 88%; }
   }
+
+  /* ---------- جدول المنتجات المضغوط: منتج واحد في كل صف ---------- */
+  #productsTable { overflow-x: auto; }
+  #productsTable table { table-layout: fixed; min-width: 760px; }
+  #productsTable th, #productsTable td { padding: 5px 6px; vertical-align: middle; white-space: nowrap; }
+  #productsTable th:nth-child(1), #productsTable td:nth-child(1) { width: 19%; }
+  #productsTable th:nth-child(2), #productsTable td:nth-child(2) { width: 19%; }
+  #productsTable th:nth-child(3), #productsTable td:nth-child(3) { width: 29%; }
+  #productsTable th:nth-child(4), #productsTable td:nth-child(4) { width: 14%; }
+  #productsTable th:nth-child(5), #productsTable td:nth-child(5) { width: 19%; }
+  #productsTable td input { height: 31px; min-width: 0; padding: 4px 7px; font-size: 12px; }
+  #productsTable td .f-name, #productsTable td .f-model { width: 100%; }
+  #productsTable td .f-colors { width: 100%; }
+  #productsTable td .f-price { width: 100%; text-align: center; }
+  #productsTable .actions { white-space: nowrap; }
+  #productsTable .actions button { padding: 5px 8px; font-size: 11px; margin-left: 2px; }
+  @media (max-width: 600px) {
+    #productsTable { overflow-x: auto; }
+    #productsTable table { display: table; min-width: 760px; }
+    #productsTable thead { display: table-header-group; }
+    #productsTable tbody { display: table-row-group; }
+    #productsTable tr { display: table-row; margin: 0; padding: 0; border: 0; background: transparent; }
+    #productsTable th, #productsTable td { display: table-cell; width: auto; }
+    #productsTable td::before { display: none; }
+  }
+
 </style>
 </head>
 <body>
@@ -822,14 +848,21 @@
       return;
     }
 
-    let html = '<table><thead><tr><th>الاسم</th><th>الموديل</th><th>السعر</th><th>الألوان</th><th></th></tr></thead><tbody>';
+    // ترتيب المنتجات حسب الفئة ثم الموديل حتى تظهر المنتجات المتشابهة متتالية.
+    filtered = [...filtered].sort((a, b) => {
+      const nameCompare = String(a.p.name || '').localeCompare(String(b.p.name || ''), 'ar', { numeric: true, sensitivity: 'base' });
+      if (nameCompare !== 0) return nameCompare;
+      return String(a.p.model || '').localeCompare(String(b.p.model || ''), 'ar', { numeric: true, sensitivity: 'base' });
+    });
+
+    let html = '<table><thead><tr><th>الاسم</th><th>الموديل</th><th>الألوان</th><th>السعر</th><th></th></tr></thead><tbody>';
     filtered.forEach(({ id, p }) => {
       const colorsStr = Array.isArray(p.colors) ? p.colors.join(', ') : '';
       html += `<tr data-id="${id}" data-old-price="${escapeAttr(p.price ?? '')}" data-old-name="${escapeAttr(p.name ?? '')}" data-old-model="${escapeAttr(p.model ?? '')}">
         <td><input class="f-name" value="${escapeAttr(p.name || '')}" ${writable ? '' : 'disabled'}></td>
         <td><input class="f-model" value="${escapeAttr(p.model || '')}" ${writable ? '' : 'disabled'}></td>
-        <td><input class="f-price" type="number" step="0.01" value="${escapeAttr(p.price ?? '')}" ${writable ? '' : 'disabled'}></td>
         <td><input class="f-colors" value="${escapeAttr(colorsStr)}" ${writable ? '' : 'disabled'}></td>
+        <td><input class="f-price" type="number" step="0.01" value="${escapeAttr(p.price ?? '')}" ${writable ? '' : 'disabled'}></td>
         <td class="actions">${(writable && !bulkMode) ? '<button class="save-btn">حفظ</button>' : ''}${writable ? '<button class="del-btn">حذف</button>' : ''}</td>
       </tr>`;
     });
