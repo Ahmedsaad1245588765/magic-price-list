@@ -389,6 +389,14 @@
   #privacyShield.active { display: flex; }
   #privacyShield .shield-icon { font-size: 34px; color: var(--muted); }
   #privacyShield .shield-text { font-size: 13px; color: var(--muted); font-weight: 700; }
+
+  /* ---------- شريطان متتابعان للفئة ثم الموديل ---------- */
+  #productCategoryBar, #productModelBar, #productBar, #sellerProductModelBar { display: flex; gap: 8px; overflow-x: auto; padding: 4px 0 10px; scrollbar-width: thin; }
+  #productModelBar, #sellerProductModelBar { padding-top: 0; }
+  #productCategoryBar .category-chip, #productModelBar .model-chip, #productBar .product-chip, #sellerProductModelBar .model-chip { flex: 0 0 auto; }
+  #productModelBar .model-chip, #sellerProductModelBar .model-chip { padding: 7px 14px; border-radius: 18px; background: #f5f7f9; border: 1px solid var(--border); cursor: pointer; font: inherit; font-size: 12.5px; font-weight: 700; color: var(--muted); white-space: nowrap; }
+  #productModelBar .model-chip.active, #sellerProductModelBar .model-chip.active { background: var(--primary-light, #2874a6); color: #fff; border-color: transparent; }
+
 </style>
 </head>
 <body>
@@ -429,6 +437,7 @@
         </div>
       </div>
       <div id="productBar"></div>
+      <div id="sellerProductModelBar"></div>
       <div id="productsGrid">
         <p class="loading-msg">جاري تحميل الأسعار...</p>
       </div>
@@ -533,6 +542,7 @@
   let mySalesUnsub = null;
   let allProducts = [];
   let activeProductName = 'الكل';
+  let activeProductModel = 'الكل';
   let currentUserEmail = '';
   let currentUserName = '';
   let currentUserRole = '';
@@ -574,24 +584,36 @@
 
   function renderProductBar() {
     const counts = {};
-    allProducts.forEach(p => {
-      const name = p.name || '';
-      if (!name) return;
-      counts[name] = (counts[name] || 0) + 1;
-    });
+    allProducts.forEach(p => { if (p.name) counts[p.name] = (counts[p.name] || 0) + 1; });
     const names = ['الكل', ...new Set(allProducts.map(p => p.name).filter(Boolean))];
     if (!names.includes(activeProductName)) activeProductName = 'الكل';
+    if (activeProductName === 'الكل') activeProductModel = 'الكل';
     productBar.innerHTML = names.map(name => {
       const count = name === 'الكل' ? allProducts.length : (counts[name] || 0);
       return `<button class="product-chip ${name === activeProductName ? 'active' : ''}" data-name="${escapeHtml(name)}"><span class="chip-count">${count}</span> ${escapeHtml(name)}</button>`;
     }).join('');
-    productBar.querySelectorAll('.product-chip').forEach(chip => {
-      chip.addEventListener('click', () => {
-        activeProductName = chip.dataset.name;
-        renderProductBar();
-        applyFilters();
-      });
-    });
+    productBar.querySelectorAll('.product-chip').forEach(chip => chip.addEventListener('click', () => {
+      activeProductName = chip.dataset.name;
+      activeProductModel = 'الكل';
+      renderProductBar();
+      applyFilters();
+    }));
+    renderSellerProductModelBar();
+  }
+
+  function renderSellerProductModelBar() {
+    const bar = document.getElementById('sellerProductModelBar');
+    if (!bar) return;
+    const source = activeProductName === 'الكل' ? allProducts : allProducts.filter(p => p.name === activeProductName);
+    const models = [...new Set(source.map(p => p.model).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), 'ar', { numeric: true, sensitivity: 'base' }));
+    const all = ['الكل', ...models];
+    if (!all.includes(activeProductModel)) activeProductModel = 'الكل';
+    bar.innerHTML = all.map(model => `<button class="model-chip ${model === activeProductModel ? 'active' : ''}" data-model="${escapeHtml(model)}">${model === 'الكل' ? 'كل الموديلات' : escapeHtml(model)}</button>`).join('');
+    bar.querySelectorAll('.model-chip').forEach(chip => chip.addEventListener('click', () => {
+      activeProductModel = chip.dataset.model;
+      renderSellerProductModelBar();
+      applyFilters();
+    }));
   }
 
   function renderProducts(list) {
@@ -604,7 +626,7 @@
       const colorsHtml = colors.map(c => `<span class="p-color">${escapeHtml(c)}</span>`).join('');
       return `
         <div class="p-card">
-          <div class="p-name">${escapeHtml(p.name || '')}</div>
+          ${activeProductName === 'الكل' ? `<div class="p-name">${escapeHtml(p.name || '')}</div>` : ''}
           <div class="p-details">
             ${p.model ? `<div class="p-model">${escapeHtml(p.model)}</div>` : '<div></div>'}
             <div class="p-price">${formatPrice(p.price)} <small>ج.م</small></div>
@@ -620,6 +642,9 @@
     let filtered = allProducts;
     if (activeProductName !== 'الكل') {
       filtered = filtered.filter(p => p.name === activeProductName);
+    }
+    if (activeProductModel !== 'الكل') {
+      filtered = filtered.filter(p => p.model === activeProductModel);
     }
     if (q) {
       filtered = filtered.filter(p => matchesTokens(`${p.name || ''} ${p.model || ''}`, q));
