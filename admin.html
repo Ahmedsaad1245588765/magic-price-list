@@ -413,6 +413,8 @@
   /* ---------- شريطان متتابعان للفئة ثم الموديل ---------- */
   #productCategoryBar, #productModelBar, #productBar, #sellerProductModelBar { display: flex; gap: 8px; overflow-x: auto; padding: 4px 0 10px; scrollbar-width: thin; }
   #productModelBar, #sellerProductModelBar { padding-top: 0; }
+  /* شريط الموديلات مخفي حتى اختيار الفئة */
+  #productModelBar.hidden-model-bar, #sellerProductModelBar.hidden-model-bar { display: none; }
   #productCategoryBar .category-chip, #productModelBar .model-chip, #productBar .product-chip, #sellerProductModelBar .model-chip { flex: 0 0 auto; }
   #productModelBar .model-chip, #sellerProductModelBar .model-chip { padding: 7px 14px; border-radius: 18px; background: #f5f7f9; border: 1px solid var(--border); cursor: pointer; font: inherit; font-size: 12.5px; font-weight: 700; color: var(--muted); white-space: nowrap; }
   #productModelBar .model-chip.active, #sellerProductModelBar .model-chip.active { background: var(--primary-light, #2874a6); color: #fff; border-color: transparent; }
@@ -863,11 +865,22 @@
     renderModelBar();
   }
 
+  function modelFamily(model) {
+    // مثال: A07 128GB 4GB يصبح A07، ونسخ المساحة/الرام تظل منتجات منفصلة.
+    return String(model || '').trim().split(/[\s\-–—\/]+/)[0] || '';
+  }
+
   function renderModelBar() {
     const bar = document.getElementById('productModelBar');
     if (!bar) return;
-    const source = activeProductCategory === 'الكل' ? allAdminProducts : allAdminProducts.filter(({ p }) => p.name === activeProductCategory);
-    const models = [...new Set(source.map(({ p }) => p.model).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), 'ar', { numeric: true, sensitivity: 'base' }));
+    if (activeProductCategory === 'الكل') {
+      bar.innerHTML = '';
+      bar.classList.add('hidden-model-bar');
+      return;
+    }
+    bar.classList.remove('hidden-model-bar');
+    const source = allAdminProducts.filter(({ p }) => p.name === activeProductCategory);
+    const models = [...new Set(source.map(({ p }) => modelFamily(p.model)).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), 'ar', { numeric: true, sensitivity: 'base' }));
     const all = ['الكل', ...models];
     if (!all.includes(activeProductModel)) activeProductModel = 'الكل';
     bar.innerHTML = all.map(model => `<button type="button" class="model-chip ${model === activeProductModel ? 'active' : ''}" data-model="${escapeAttr(model)}">${model === 'الكل' ? 'كل الموديلات' : escapeAttr(model)}</button>`).join('');
@@ -886,7 +899,7 @@
       filtered = filtered.filter(({ p }) => p.name === activeProductCategory);
     }
     if (activeProductModel !== 'الكل') {
-      filtered = filtered.filter(({ p }) => p.model === activeProductModel);
+      filtered = filtered.filter(({ p }) => modelFamily(p.model) === activeProductModel);
     }
     if (q) {
       filtered = filtered.filter(({ p }) => matchesTokens(`${p.name || ''} ${p.model || ''}`, q));
